@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_06_053040) do
+ActiveRecord::Schema[7.2].define(version: 2026_05_06_054532) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -61,6 +61,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_06_053040) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.boolean "cross_gender", default: false, null: false
+    t.datetime "confirmed_at"
     t.index ["event_id", "user_id"], name: "index_event_members_on_event_id_and_user_id", unique: true
     t.index ["event_id"], name: "index_event_members_on_event_id"
     t.index ["user_id"], name: "index_event_members_on_user_id"
@@ -77,6 +78,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_06_053040) do
     t.boolean "allow_cross_gender", default: false, null: false
     t.integer "offline_male", default: 0, null: false
     t.integer "offline_female", default: 0, null: false
+    t.datetime "deleted_at"
     t.index ["host_id"], name: "index_events_on_host_id"
     t.index ["script_id"], name: "index_events_on_script_id"
   end

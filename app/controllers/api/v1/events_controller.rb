@@ -3,8 +3,8 @@ module Api
     class EventsController < ApplicationController
       skip_before_action :authenticate!, only: [ :index, :show ]
 
-      before_action :set_event, only: [ :show, :update, :destroy, :join, :leave ]
-      before_action :require_host!, only: [ :update, :destroy ]
+      before_action :set_event, only: [ :show, :update, :destroy, :restore, :join, :leave ]
+      before_action :require_host!, only: [ :update, :destroy, :restore ]
 
       def index
         events = Event.includes(:script, :host).all
@@ -58,8 +58,13 @@ module Api
           return render json: { error: "已有人申請，無法刪除" }, status: :unprocessable_entity
         end
 
-        @event.destroy!
+        @event.update_column(:deleted_at, Time.current)
         render json: { message: "Event deleted" }
+      end
+
+      def restore
+        @event.update_column(:deleted_at, nil)
+        render json: EventSerializer.new(@event, detail: true).as_json
       end
 
       def join
@@ -110,7 +115,7 @@ module Api
       private
 
       def set_event
-        @event = Event.includes(:script, :host).find(params[:id])
+        @event = Event.unscoped.includes(:script, :host).find(params[:id])
       rescue ActiveRecord::RecordNotFound
         render json: { error: "Event not found" }, status: :not_found
       end
@@ -158,7 +163,7 @@ module Api
       end
 
       def location_only_params
-        params.permit(:location)
+        params.permit(:location, :offline_male, :offline_female)
       end
     end
   end

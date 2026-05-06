@@ -16,7 +16,8 @@ class EventSerializer
       location: @event.location,
       status: @event.status,
       confirmed_count: @event.confirmed_count,
-      available_slots: @event.available_slots
+      available_slots: @event.available_slots,
+      deleted_at: @event.deleted_at
     }
     if @detail
       json[:members] = members_data
@@ -48,7 +49,12 @@ class EventSerializer
         id: m.id,
         user: { id: m.user.id, nickname: m.user.nickname, gender: m.user.gender },
         status: m.status,
-        cross_gender: m.cross_gender
+        cross_gender: m.cross_gender,
+        applied_at: m.created_at,
+        confirmed_at: m.confirmed_at,
+        rejected_at: m.rejected_at,
+        leave_requested_at: m.leave_requested_at,
+        cancelled_at: m.cancelled_at
       }
     end
   end

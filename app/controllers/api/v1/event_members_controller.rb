@@ -17,7 +17,11 @@ module Api
           return render json: { error: "Invalid status transition" }, status: :unprocessable_entity
         end
 
-        if member.update(status: new_status)
+        timestamp_field = "#{new_status}_at"
+        attrs = { status: new_status }
+        attrs[timestamp_field] = Time.current if member.class.column_names.include?(timestamp_field)
+
+        if member.update(attrs)
           @event.sync_status if member.confirmed?
           render json: member_json(member)
         else

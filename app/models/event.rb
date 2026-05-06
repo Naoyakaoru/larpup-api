@@ -8,6 +8,8 @@ class Event < ApplicationRecord
 
   enum :status, { recruiting: 0, full: 1, completed: 2, cancelled: 3 }, default: :recruiting
 
+  default_scope { where(deleted_at: nil) }
+
   validates :scheduled_at, presence: true
   validates :location, presence: true
 
