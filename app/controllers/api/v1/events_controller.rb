@@ -35,15 +35,26 @@ module Api
       end
 
       def update
-        if @event.update(event_params)
-          render json: EventSerializer.new(@event).as_json
+        permitted = has_members? ? location_only_params : event_params
+
+        old_location = @event.location
+        if @event.update(permitted)
+          if has_members? && @event.location != old_location
+            AuditLog.create!(
+              auditable: @event,
+              user: current_user,
+              action: "location_changed",
+              metadata: { from: old_location, to: @event.location }
+            )
+          end
+          render json: EventSerializer.new(@event, detail: true).as_json
         else
           render json: { errors: @event.errors.full_messages }, status: :unprocessable_entity
         end
       end
 
       def destroy
-        if @event.event_members.exists?
+        if has_members?
           return render json: { error: "已有人申請，無法刪除" }, status: :unprocessable_entity
         end
 
@@ -138,8 +149,16 @@ module Api
         end
       end
 
+      def has_members?
+        @event.event_members.exists?
+      end
+
       def event_params
         params.permit(:script_id, :scheduled_at, :location, :status, :allow_cross_gender, :offline_male, :offline_female)
+      end
+
+      def location_only_params
+        params.permit(:location)
       end
     end
   end

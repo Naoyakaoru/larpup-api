@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_06_033000) do
+ActiveRecord::Schema[7.2].define(version: 2026_05_06_053040) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -42,6 +42,18 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_06_033000) do
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
+  create_table "audit_logs", force: :cascade do |t|
+    t.string "auditable_type", null: false
+    t.bigint "auditable_id", null: false
+    t.bigint "user_id", null: false
+    t.string "action", null: false
+    t.jsonb "metadata", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["auditable_type", "auditable_id"], name: "index_audit_logs_on_auditable"
+    t.index ["user_id"], name: "index_audit_logs_on_user_id"
+  end
+
   create_table "event_members", force: :cascade do |t|
     t.bigint "event_id", null: false
     t.bigint "user_id", null: false
@@ -63,6 +75,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_06_033000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.boolean "allow_cross_gender", default: false, null: false
+    t.integer "offline_male", default: 0, null: false
+    t.integer "offline_female", default: 0, null: false
     t.index ["host_id"], name: "index_events_on_host_id"
     t.index ["script_id"], name: "index_events_on_script_id"
   end
@@ -93,6 +107,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_06_033000) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "audit_logs", "users"
   add_foreign_key "event_members", "events"
   add_foreign_key "event_members", "users"
   add_foreign_key "events", "scripts"

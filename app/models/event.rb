@@ -4,6 +4,7 @@ class Event < ApplicationRecord
 
   has_many :event_members, dependent: :destroy
   has_many :members, through: :event_members, source: :user
+  has_many :audit_logs, as: :auditable, dependent: :destroy
 
   enum :status, { recruiting: 0, full: 1, completed: 2, cancelled: 3 }, default: :recruiting
 

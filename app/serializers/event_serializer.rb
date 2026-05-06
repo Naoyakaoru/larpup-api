@@ -18,7 +18,10 @@ class EventSerializer
       confirmed_count: @event.confirmed_count,
       available_slots: @event.available_slots
     }
-    json[:members] = members_data if @detail
+    if @detail
+      json[:members] = members_data
+      json[:audit_logs] = audit_logs_data
+    end
     json
   end
 
@@ -46,6 +49,17 @@ class EventSerializer
         user: { id: m.user.id, nickname: m.user.nickname, gender: m.user.gender },
         status: m.status,
         cross_gender: m.cross_gender
+      }
+    end
+  end
+
+  def audit_logs_data
+    @event.audit_logs.includes(:user).order(created_at: :desc).map do |log|
+      {
+        action: log.action,
+        metadata: log.metadata,
+        user: { id: log.user.id, nickname: log.user.nickname },
+        created_at: log.created_at
       }
     end
   end

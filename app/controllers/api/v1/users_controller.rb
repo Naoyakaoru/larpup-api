@@ -25,7 +25,7 @@ module Api
       private
 
       def user_params
-        params.permit(:nickname, :email, :password, :password_confirmation, :avatar)
+        params.permit(:nickname, :avatar, :password, :password_confirmation)
       end
 
       def user_json(user)
