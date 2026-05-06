@@ -31,6 +31,7 @@ class Script < ApplicationRecord
   DIFFICULTY_LABELS = { easy: "入門", medium: "進階", hard: "燒腦" }.freeze
 
   enum :difficulty, { easy: 0, medium: 1, hard: 2 }
+  enum :status, { pending: "pending", approved: "approved", rejected: "rejected" }, default: :approved
 
   def difficulty_label
     DIFFICULTY_LABELS[difficulty.to_sym]

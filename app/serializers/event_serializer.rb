@@ -29,7 +29,8 @@ class EventSerializer
   private
 
   def script_data
-    s = @event.script_version.script
+    v = @event.script_version
+    s = v.script
     {
       id: s.id,
       title: s.title,
@@ -39,7 +40,11 @@ class EventSerializer
       any_slots: s.any_slots,
       difficulty: s.difficulty,
       difficulty_label: s.difficulty_label,
-      genres: s.genre_labels
+      genres: s.genre_labels,
+      duration: (v.duration_override || s.duration)&.to_f,
+      price: v.price,
+      store: v.store ? { id: v.store.id, name: v.store.name } : nil,
+      version_name: v.version_name
     }
   end
 

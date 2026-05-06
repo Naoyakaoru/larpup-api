@@ -6,6 +6,7 @@ class User < ApplicationRecord
   has_many :hosted_events, class_name: "Event", foreign_key: :host_id, dependent: :destroy
   has_many :event_members, dependent: :destroy
   has_many :joined_events, through: :event_members, source: :event
+  has_many :owned_stores, class_name: "Store", foreign_key: :owner_id, dependent: :restrict_with_error
 
   GENDERS = %w[male female].freeze
   HANDLE_FORMAT = /\A[a-z0-9_]{3,30}\z/

@@ -5,7 +5,7 @@ module Api
       before_action :require_admin!, only: [ :create, :update ]
 
       def index
-        scripts = Script.all
+        scripts = Script.where(status: :approved)
         scripts = scripts.where(difficulty: params[:difficulty]) if params[:difficulty].present?
         scripts = scripts.where("genres @> ARRAY[?]::integer[]", params[:genre].to_i) if params[:genre].present?
         render json: scripts.map { |s| ScriptSerializer.new(s, url_helper: method(:url_for)).as_json }
@@ -41,7 +41,7 @@ module Api
       private
 
       def script_params
-        params.permit(:title, :difficulty, :description, :male_slots, :female_slots, :any_slots, :cover_image, genres: [])
+        params.permit(:title, :difficulty, :description, :male_slots, :female_slots, :any_slots, :duration, :cover_image, genres: [])
       end
     end
   end

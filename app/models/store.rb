@@ -1,4 +1,5 @@
 class Store < ApplicationRecord
+  belongs_to :owner, class_name: "User"
   has_many :script_versions, dependent: :destroy
   has_many :scripts, through: :script_versions
 
