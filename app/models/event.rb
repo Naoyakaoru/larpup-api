@@ -26,10 +26,12 @@ class Event < ApplicationRecord
   end
 
   def sync_status
-    return if cancelled?
+    return if cancelled? || completed?
 
     if confirmed_count >= total_slots
       update_column(:status, Event.statuses[:full])
+    elsif full?
+      update_column(:status, Event.statuses[:recruiting])
     end
   end
 end

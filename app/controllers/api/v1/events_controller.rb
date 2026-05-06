@@ -3,8 +3,8 @@ module Api
     class EventsController < ApplicationController
       skip_before_action :authenticate!, only: [ :index, :show ]
 
-      before_action :set_event, only: [ :show, :update, :destroy, :restore, :join, :leave ]
-      before_action :require_host!, only: [ :update, :destroy, :restore ]
+      before_action :set_event, only: [ :show, :update, :destroy, :restore, :cancel, :join, :leave ]
+      before_action :require_host!, only: [ :update, :destroy, :restore, :cancel ]
 
       def index
         events = Event.includes(:script, :host).all
@@ -65,6 +65,15 @@ module Api
 
       def restore
         @event.update_column(:deleted_at, nil)
+        render json: EventSerializer.new(@event, detail: true).as_json
+      end
+
+      def cancel
+        if @event.cancelled? || @event.completed?
+          return render json: { error: "活動已無法取消" }, status: :unprocessable_entity
+        end
+
+        @event.update_column(:status, Event.statuses[:cancelled])
         render json: EventSerializer.new(@event, detail: true).as_json
       end
 

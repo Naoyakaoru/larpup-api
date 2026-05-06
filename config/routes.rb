@@ -18,6 +18,7 @@ Rails.application.routes.draw do
           post   :join
           delete :leave
           patch  :restore
+          patch  :cancel
         end
         resources :members, only: [ :index, :update ], controller: "event_members"
       end
