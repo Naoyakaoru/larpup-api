@@ -19,13 +19,13 @@ class Event < ApplicationRecord
   end
 
   def available_slots
-    total_slots - confirmed_count
+    total_slots - confirmed_count - offline_male - offline_female
   end
 
   def sync_status
     return if cancelled?
 
-    if confirmed_count >= total_slots
+    if confirmed_count + offline_male + offline_female >= total_slots
       update_column(:status, Event.statuses[:full])
     elsif recruiting? && confirmed_count < total_slots
       # already recruiting, no change needed
