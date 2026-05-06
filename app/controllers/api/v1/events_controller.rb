@@ -150,7 +150,7 @@ module Api
       end
 
       def has_members?
-        @event.event_members.exists?
+        @event.event_members.where.not(user_id: @event.host_id).exists?
       end
 
       def event_params
