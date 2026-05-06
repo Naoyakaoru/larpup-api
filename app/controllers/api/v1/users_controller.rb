@@ -14,8 +14,8 @@ module Api
       end
 
       def events
-        hosted = current_user.hosted_events.includes(:script)
-        joined = current_user.joined_events.includes(:script)
+        hosted = current_user.hosted_events.includes(script_version: :script)
+        joined = current_user.joined_events.includes(script_version: :script)
         render json: {
           hosted: hosted.map { |e| event_json(e) },
           joined: joined.map { |e| event_json(e) }
@@ -42,7 +42,7 @@ module Api
       def event_json(event)
         {
           id: event.id,
-          script: { id: event.script.id, title: event.script.title },
+          script: { id: event.script_version.script.id, title: event.script_version.script.title },
           scheduled_at: event.scheduled_at,
           location: event.location,
           status: event.status

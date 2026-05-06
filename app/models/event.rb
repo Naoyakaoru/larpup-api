@@ -1,12 +1,43 @@
 class Event < ApplicationRecord
-  belongs_to :script
+  belongs_to :script_version
   belongs_to :host, class_name: "User"
+
+  delegate :script, to: :script_version
 
   has_many :event_members, dependent: :destroy
   has_many :members, through: :event_members, source: :user
   has_many :audit_logs, as: :auditable, dependent: :destroy
 
+  include AASM
+
   enum :status, { recruiting: 0, full: 1, completed: 2, cancelled: 3 }, default: :recruiting
+
+  aasm column: :status, enum: true do
+    state :recruiting, initial: true
+    state :full
+    state :completed
+    state :cancelled
+
+    event :fill do
+      transitions from: :recruiting, to: :full
+    end
+
+    event :open do
+      transitions from: :full, to: :recruiting
+    end
+
+    event :complete do
+      transitions from: [ :recruiting, :full ], to: :completed
+    end
+
+    event :cancel do
+      transitions from: [ :recruiting, :full ], to: :cancelled
+    end
+
+    event :restore do
+      transitions from: :cancelled, to: :recruiting
+    end
+  end
 
   default_scope { where(deleted_at: nil) }
 
@@ -14,7 +45,7 @@ class Event < ApplicationRecord
   validates :location, presence: true
 
   def total_slots
-    script.total_slots
+    script_version.script.total_slots
   end
 
   def confirmed_count
@@ -29,9 +60,9 @@ class Event < ApplicationRecord
     return if cancelled? || completed?
 
     if confirmed_count >= total_slots
-      update_column(:status, Event.statuses[:full])
+      fill! unless full?
     elsif full?
-      update_column(:status, Event.statuses[:recruiting])
+      open!
     end
   end
 end

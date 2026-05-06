@@ -29,7 +29,7 @@ class EventSerializer
   private
 
   def script_data
-    s = @event.script
+    s = @event.script_version.script
     {
       id: s.id,
       title: s.title,

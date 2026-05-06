@@ -4,7 +4,8 @@ RSpec.describe "Events", type: :request do
   let(:host) { create(:user, :male) }
   let(:other_user) { create(:user, :female) }
   let(:script) { create(:script, male_slots: 2, female_slots: 2) }
-  let!(:event) { create(:event, script: script, host: host) }
+  let(:script_version) { create(:script_version, script: script) }
+  let!(:event) { create(:event, script_version: script_version, host: host) }
 
   let(:json) { JSON.parse(response.body) }
 
@@ -16,21 +17,22 @@ RSpec.describe "Events", type: :request do
     end
 
     it "filters by status" do
-      create(:event, :cancelled, script: script, host: host)
+      create(:event, :cancelled, script_version: script_version, host: host)
       get "/api/v1/events?status=cancelled"
       expect(json.all? { |e| e["status"] == "cancelled" }).to be true
     end
 
     it "filters by script_id" do
       other_script = create(:script)
-      other_event = create(:event, script: other_script, host: host)
+      other_version = create(:script_version, script: other_script)
+      other_event = create(:event, script_version: other_version, host: host)
       get "/api/v1/events?script_id=#{other_script.id}"
       expect(json.map { |e| e["id"] }).to contain_exactly(other_event.id)
     end
 
     it "filters by date (returns events on or after given date)" do
-      past_event = create(:event, script: script, host: host, scheduled_at: 1.week.ago)
-      future_event = create(:event, script: script, host: host, scheduled_at: 1.week.from_now)
+      past_event = create(:event, script_version: script_version, host: host, scheduled_at: 1.week.ago)
+      future_event = create(:event, script_version: script_version, host: host, scheduled_at: 1.week.from_now)
       get "/api/v1/events?date=#{Date.today}"
       ids = json.map { |e| e["id"] }
       expect(ids).to include(future_event.id)
@@ -49,7 +51,7 @@ RSpec.describe "Events", type: :request do
   describe "POST /api/v1/events" do
     let(:params) do
       {
-        script_id: script.id,
+        script_version_id: script_version.id,
         scheduled_at: 1.week.from_now.iso8601,
         location: "新竹",
         host_in_game: false,
@@ -77,7 +79,8 @@ RSpec.describe "Events", type: :request do
 
     it "sets status to full when offline members fill all slots on creation" do
       full_script = create(:script, male_slots: 1, female_slots: 0, any_slots: 0)
-      post "/api/v1/events", params: params.merge(script_id: full_script.id, offline_male: 1).to_json,
+      full_version = create(:script_version, script: full_script)
+      post "/api/v1/events", params: params.merge(script_version_id: full_version.id, offline_male: 1).to_json,
         headers: { "Content-Type" => "application/json" }.merge(auth_header(host))
 
       expect(response).to have_http_status(:created)
@@ -86,7 +89,8 @@ RSpec.describe "Events", type: :request do
 
     it "sets status to full when host_in_game fills the last slot on creation" do
       solo_script = create(:script, male_slots: 1, female_slots: 0, any_slots: 0)
-      post "/api/v1/events", params: params.merge(script_id: solo_script.id, host_in_game: true).to_json,
+      solo_version = create(:script_version, script: solo_script)
+      post "/api/v1/events", params: params.merge(script_version_id: solo_version.id, host_in_game: true).to_json,
         headers: { "Content-Type" => "application/json" }.merge(auth_header(host))
 
       expect(response).to have_http_status(:created)
@@ -139,7 +143,8 @@ RSpec.describe "Events", type: :request do
 
     it "syncs status to full when offline count fills all slots on update" do
       small_script = create(:script, male_slots: 1, female_slots: 1, any_slots: 0)
-      small_event = create(:event, script: small_script, host: host)
+      small_version = create(:script_version, script: small_script)
+      small_event = create(:event, script_version: small_version, host: host)
 
       patch "/api/v1/events/#{small_event.id}",
         params: { offline_male: 1, offline_female: 1 }.to_json,
@@ -223,7 +228,7 @@ RSpec.describe "Events", type: :request do
   end
 
   describe "POST /api/v1/events/:id/join – cross_gender and offline slots" do
-    let(:cross_gender_event) { create(:event, script: script, host: host, allow_cross_gender: true) }
+    let(:cross_gender_event) { create(:event, script_version: script_version, host: host, allow_cross_gender: true) }
 
     it "male user with cross_gender fills female slot" do
       male_user = create(:user, :male)

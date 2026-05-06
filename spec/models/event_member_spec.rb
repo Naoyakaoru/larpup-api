@@ -2,8 +2,9 @@ require "rails_helper"
 
 RSpec.describe EventMember, type: :model do
   let(:script) { create(:script, male_slots: 2, female_slots: 2) }
+  let(:script_version) { create(:script_version, script: script) }
   let(:host) { create(:user, :male) }
-  let(:event) { create(:event, script: script, host: host) }
+  let(:event) { create(:event, script_version: script_version, host: host) }
   let(:member_user) { create(:user, :female) }
 
   describe "AASM transitions" do

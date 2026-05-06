@@ -62,9 +62,10 @@ RSpec.describe "Users", type: :request do
 
   describe "GET /api/v1/users/me/events" do
     let(:script) { create(:script) }
+    let(:script_version) { create(:script_version, script: script) }
 
     it "returns hosted events" do
-      event = create(:event, host: user, script: script)
+      event = create(:event, host: user, script_version: script_version)
       get "/api/v1/users/me/events", headers: auth_header(user)
 
       expect(response).to have_http_status(:ok)
@@ -73,7 +74,7 @@ RSpec.describe "Users", type: :request do
 
     it "returns joined events" do
       host = create(:user)
-      event = create(:event, host: host, script: script)
+      event = create(:event, host: host, script_version: script_version)
       create(:event_member, :confirmed, event: event, user: user)
 
       get "/api/v1/users/me/events", headers: auth_header(user)
@@ -84,7 +85,7 @@ RSpec.describe "Users", type: :request do
 
     it "does not return events hosted by others in hosted list" do
       other = create(:user)
-      create(:event, host: other, script: script)
+      create(:event, host: other, script_version: script_version)
 
       get "/api/v1/users/me/events", headers: auth_header(user)
 
