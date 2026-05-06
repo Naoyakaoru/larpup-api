@@ -21,6 +21,13 @@ module Api
       def create
         event = current_user.hosted_events.build(event_params)
         if event.save
+          if ActiveModel::Type::Boolean.new.cast(params[:host_in_game])
+            event.event_members.create!(
+              user: current_user,
+              status: :confirmed,
+              cross_gender: ActiveModel::Type::Boolean.new.cast(params[:host_cross_gender])
+            )
+          end
           render json: event_json(event), status: :created
         else
           render json: { errors: event.errors.full_messages }, status: :unprocessable_entity
@@ -41,6 +48,10 @@ module Api
       end
 
       def join
+        if @event.host_id == current_user.id
+          return render json: { error: "You are the host" }, status: :unprocessable_entity
+        end
+
         if @event.cancelled?
           return render json: { error: "Event is cancelled" }, status: :unprocessable_entity
         end
@@ -88,7 +99,7 @@ module Api
       end
 
       def event_params
-        params.permit(:script_id, :scheduled_at, :location, :status, :host_in_game, :host_cross_gender, :allow_cross_gender)
+        params.permit(:script_id, :scheduled_at, :location, :status, :allow_cross_gender)
       end
 
       def event_json(event, detail: false)
@@ -97,8 +108,6 @@ module Api
           script: { id: event.script.id, title: event.script.title, total_slots: event.script.total_slots,
                     male_slots: event.script.male_slots, female_slots: event.script.female_slots, any_slots: event.script.any_slots },
           host: { id: event.host.id, nickname: event.host.nickname },
-          host_in_game: event.host_in_game,
-          host_cross_gender: event.host_cross_gender,
           allow_cross_gender: event.allow_cross_gender,
           scheduled_at: event.scheduled_at,
           location: event.location,

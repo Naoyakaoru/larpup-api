@@ -19,7 +19,7 @@ class Event < ApplicationRecord
   end
 
   def available_slots
-    total_slots - (host_in_game? ? 1 : 0) - confirmed_count
+    total_slots - confirmed_count
   end
 
   def sync_status
