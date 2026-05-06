@@ -1,4 +1,5 @@
 ENV["RAILS_ENV"] ||= "test"
+ENV["SECRET_KEY_BASE"] ||= "test_secret_key_base_for_minitest_only"
 require_relative "../config/environment"
 require "rails/test_help"
 
@@ -10,6 +11,9 @@ module ActiveSupport
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
 
-    # Add more helper methods to be used by all tests here...
+    def auth_header(user)
+      token = JwtAuthenticatable.encode(user_id: user.id)
+      { "Authorization" => "Bearer #{token}" }
+    end
   end
 end

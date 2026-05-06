@@ -29,6 +29,7 @@ module Api
               cross_gender: ActiveModel::Type::Boolean.new.cast(params[:host_cross_gender])
             )
           end
+          event.sync_status
           render json: EventSerializer.new(event).as_json, status: :created
         else
           render json: { errors: event.errors.full_messages }, status: :unprocessable_entity
@@ -48,6 +49,7 @@ module Api
               metadata: { from: old_location, to: @event.location }
             )
           end
+          @event.sync_status
           render json: EventSerializer.new(@event, detail: true).as_json
         else
           render json: { errors: @event.errors.full_messages }, status: :unprocessable_entity
@@ -96,7 +98,7 @@ module Api
           return render json: { error: "已被拒絕，無法重新申請" }, status: :unprocessable_entity
         end
 
-        cross_gender = params[:cross_gender] && @event.allow_cross_gender
+        cross_gender = params[:cross_gender].present? && @event.allow_cross_gender
         effective_gender = cross_gender ? (current_user.gender == "male" ? "female" : "male") : current_user.gender
 
         unless slot_available_for?(effective_gender)
@@ -183,7 +185,7 @@ module Api
       end
 
       def location_only_params
-        params.permit(:location, :offline_male, :offline_female)
+        params.permit(:location, :offline_male, :offline_female, :allow_cross_gender)
       end
     end
   end

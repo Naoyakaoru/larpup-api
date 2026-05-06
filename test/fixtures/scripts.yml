@@ -1,0 +1,17 @@
+murder_at_manor:
+  title: Murder at the Manor
+  difficulty: 0
+  male_slots: 2
+  female_slots: 2
+  any_slots: 0
+  genres: "{0}"
+  description: A classic mystery
+
+solo_script:
+  title: Solo Script
+  difficulty: 0
+  male_slots: 1
+  female_slots: 0
+  any_slots: 0
+  genres: "{0}"
+  description: Single player
