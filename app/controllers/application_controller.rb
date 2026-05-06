@@ -1,6 +1,8 @@
 class ApplicationController < ActionController::API
   before_action :authenticate!
 
+  rescue_from ActiveRecord::RecordNotFound, with: :not_found
+
   private
 
   def authenticate!
@@ -12,6 +14,10 @@ class ApplicationController < ActionController::API
 
   def current_user
     @current_user
+  end
+
+  def not_found
+    render json: { error: "Not found" }, status: :not_found
   end
 
   def require_admin!

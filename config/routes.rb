@@ -10,6 +10,7 @@ Rails.application.routes.draw do
       get   "users/me",       to: "users#me"
       patch "users/me",       to: "users#update"
       get   "users/me/events", to: "users#events"
+      get   "users/:handle",   to: "users#show"
 
       resources :scripts, only: [ :index, :show, :create, :update ]
 

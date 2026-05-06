@@ -38,6 +38,20 @@ RSpec.describe "Events", type: :request do
       expect(ids).to include(future_event.id)
       expect(ids).not_to include(past_event.id)
     end
+
+    it "excludes past events by default" do
+      past_event = create(:event, script_version: script_version, host: host, scheduled_at: 1.day.ago)
+      get "/api/v1/events"
+      expect(json.map { |e| e["id"] }).not_to include(past_event.id)
+    end
+
+    it "returns events sorted by scheduled_at ascending" do
+      later  = create(:event, script_version: script_version, host: host, scheduled_at: 3.weeks.from_now)
+      sooner = create(:event, script_version: script_version, host: host, scheduled_at: 2.days.from_now)
+      get "/api/v1/events"
+      ids = json.map { |e| e["id"] }
+      expect(ids.index(sooner.id)).to be < ids.index(later.id)
+    end
   end
 
   describe "GET /api/v1/events/:id" do
@@ -45,6 +59,18 @@ RSpec.describe "Events", type: :request do
       get "/api/v1/events/#{event.id}"
       expect(response).to have_http_status(:ok)
       expect(json["id"]).to eq(event.id)
+    end
+
+    it "includes host handle" do
+      get "/api/v1/events/#{event.id}"
+      expect(json["host"]["handle"]).to eq(host.handle)
+    end
+
+    it "includes handle for each member in detail view" do
+      create(:event_member, event: event, user: other_user)
+      get "/api/v1/events/#{event.id}"
+      member_json = json["members"].find { |m| m["user"]["id"] == other_user.id }
+      expect(member_json["user"]["handle"]).to eq(other_user.handle)
     end
   end
 
@@ -75,6 +101,24 @@ RSpec.describe "Events", type: :request do
         headers: { "Content-Type" => "application/json" }
 
       expect(response).to have_http_status(:unauthorized)
+    end
+
+    it "creates an event using script_id (resolves latest script_version)" do
+      post "/api/v1/events",
+        params: params.except(:script_version_id).merge(script_id: script.id).to_json,
+        headers: { "Content-Type" => "application/json" }.merge(auth_header(host))
+
+      expect(response).to have_http_status(:created)
+      expect(json["script"]["id"]).to eq(script.id)
+    end
+
+    it "returns error when script_id does not exist" do
+      post "/api/v1/events",
+        params: params.except(:script_version_id).merge(script_id: 99999).to_json,
+        headers: { "Content-Type" => "application/json" }.merge(auth_header(host))
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(json["errors"]).to include(match(/[Ss]cript version/))
     end
 
     it "sets status to full when offline members fill all slots on creation" do
@@ -289,6 +333,56 @@ RSpec.describe "Events", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(member.reload).to be_leave_requested
+    end
+
+    it "returns 404 when user is not a member" do
+      delete "/api/v1/events/#{event.id}/leave", headers: auth_header(other_user)
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "returns error when member status does not allow leaving" do
+      create(:event_member, :rejected, event: event, user: other_user)
+      delete "/api/v1/events/#{event.id}/leave", headers: auth_header(other_user)
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+  end
+
+  describe "PATCH /api/v1/events/:id/restore" do
+    it "host can restore a soft-deleted event" do
+      event.update_column(:deleted_at, Time.current)
+
+      patch "/api/v1/events/#{event.id}/restore", headers: auth_header(host)
+
+      expect(response).to have_http_status(:ok)
+      expect(event.reload.deleted_at).to be_nil
+    end
+
+    it "forbids non-host from restoring" do
+      event.update_column(:deleted_at, Time.current)
+
+      patch "/api/v1/events/#{event.id}/restore", headers: auth_header(other_user)
+
+      expect(response).to have_http_status(:forbidden)
+    end
+  end
+
+  describe "POST /api/v1/events/:id/join – edge cases" do
+    it "blocks join when event is cancelled" do
+      event.update_column(:status, Event.statuses[:cancelled])
+
+      post "/api/v1/events/#{event.id}/join",
+        headers: { "Content-Type" => "application/json" }.merge(auth_header(other_user))
+
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+
+    it "blocks join when user is already an active member" do
+      create(:event_member, :confirmed, event: event, user: other_user)
+
+      post "/api/v1/events/#{event.id}/join",
+        headers: { "Content-Type" => "application/json" }.merge(auth_header(other_user))
+
+      expect(response).to have_http_status(:unprocessable_entity)
     end
   end
 end

@@ -33,6 +33,17 @@ RSpec.describe "Scripts", type: :request do
 
       expect(json.all? { |s| s["difficulty"] == "easy" }).to be true
     end
+
+    it "filters by genre" do
+      mystery_script = create(:script, genres: [ 0 ])
+      romance_script = create(:script, genres: [ 3 ])
+
+      get "/api/v1/scripts?genre=0"
+
+      ids = json.map { |s| s["id"] }
+      expect(ids).to include(mystery_script.id)
+      expect(ids).not_to include(romance_script.id)
+    end
   end
 
   describe "GET /api/v1/scripts/:id" do

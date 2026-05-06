@@ -8,7 +8,7 @@ class EventSerializer
     json = {
       id: @event.id,
       script: script_data,
-      host: { id: @event.host.id, nickname: @event.host.nickname },
+      host: { id: @event.host.id, handle: @event.host.handle, nickname: @event.host.nickname },
       allow_cross_gender: @event.allow_cross_gender,
       offline_male: @event.offline_male,
       offline_female: @event.offline_female,
@@ -47,7 +47,7 @@ class EventSerializer
     @event.event_members.includes(:user).map do |m|
       {
         id: m.id,
-        user: { id: m.user.id, nickname: m.user.nickname, gender: m.user.gender },
+        user: { id: m.user.id, handle: m.user.handle, nickname: m.user.nickname, gender: m.user.gender },
         status: m.status,
         cross_gender: m.cross_gender,
         applied_at: m.created_at,

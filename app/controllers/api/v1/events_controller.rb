@@ -13,7 +13,12 @@ module Api
           version_ids = ScriptVersion.where(script_id: params[:script_id]).pluck(:id)
           events = events.where(script_version_id: version_ids)
         end
-        events = events.where("scheduled_at >= ?", Date.parse(params[:date])) if params[:date].present?
+        if params[:date].present?
+          events = events.where("scheduled_at >= ?", Date.parse(params[:date]))
+        else
+          events = events.where("scheduled_at >= ?", Time.current)
+        end
+        events = events.order(scheduled_at: :asc)
         render json: events.map { |e| EventSerializer.new(e).as_json }
       end
 
@@ -23,6 +28,10 @@ module Api
 
       def create
         event = current_user.hosted_events.build(event_params)
+        if event.script_version_id.nil? && params[:script_id].present?
+          script = Script.find_by(id: params[:script_id])
+          event.script_version = script&.script_versions&.order(created_at: :desc)&.first
+        end
         if event.save
           if ActiveModel::Type::Boolean.new.cast(params[:host_in_game])
             event.event_members.create!(

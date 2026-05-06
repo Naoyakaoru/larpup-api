@@ -1,8 +1,15 @@
 module Api
   module V1
     class UsersController < ApplicationController
+      skip_before_action :authenticate!, only: [ :show ]
+
       def me
         render json: user_json(current_user)
+      end
+
+      def show
+        user = User.find_by!(handle: params[:handle])
+        render json: public_profile_json(user)
       end
 
       def update
@@ -14,8 +21,9 @@ module Api
       end
 
       def events
-        hosted = current_user.hosted_events.includes(script_version: :script)
-        joined = current_user.joined_events.includes(script_version: :script)
+        scope = params[:include_past] == "true" ? Event.unscoped.where(deleted_at: nil) : Event.where("scheduled_at >= ?", Time.current)
+        hosted = current_user.hosted_events.merge(scope).order(scheduled_at: :asc).includes(script_version: :script)
+        joined = current_user.joined_events.merge(scope).order(scheduled_at: :asc).includes(script_version: :script)
         render json: {
           hosted: hosted.map { |e| event_json(e) },
           joined: joined.map { |e| event_json(e) }
@@ -25,18 +33,35 @@ module Api
       private
 
       def user_params
-        params.permit(:nickname, :avatar, :password, :password_confirmation)
+        params.permit(:nickname, :handle, :avatar, :password, :password_confirmation, :show_hosted_events)
       end
 
       def user_json(user)
         {
           id: user.id,
+          handle: user.handle,
           email: user.email,
           nickname: user.nickname,
           gender: user.gender,
           avatar_url: user.avatar.attached? ? url_for(user.avatar) : nil,
-          is_admin: user.is_admin
+          is_admin: user.is_admin,
+          show_hosted_events: user.show_hosted_events
         }
+      end
+
+      def public_profile_json(user)
+        json = {
+          id: user.id,
+          handle: user.handle,
+          nickname: user.nickname,
+          gender: user.gender,
+          avatar_url: user.avatar.attached? ? url_for(user.avatar) : nil
+        }
+        if user.show_hosted_events
+          hosted = user.hosted_events.where(status: [ :recruiting, :full ]).where("scheduled_at >= ?", Time.current).order(scheduled_at: :asc).includes(script_version: :script)
+          json[:hosted_events] = hosted.map { |e| event_json(e) }
+        end
+        json
       end
 
       def event_json(event)

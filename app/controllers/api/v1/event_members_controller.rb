@@ -19,7 +19,7 @@ module Api
         end
 
         member.public_send(:"#{aasm_event}!")
-        @event.sync_status if member.confirmed?
+        @event.sync_status
         render json: member_json(member)
       rescue AASM::InvalidTransition
         render json: { error: "Invalid status transition" }, status: :unprocessable_entity
