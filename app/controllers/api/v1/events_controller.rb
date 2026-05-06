@@ -87,14 +87,16 @@ module Api
       end
 
       def event_params
-        params.permit(:script_id, :scheduled_at, :location, :status)
+        params.permit(:script_id, :scheduled_at, :location, :status, :host_in_game)
       end
 
       def event_json(event, detail: false)
         json = {
           id: event.id,
-          script: { id: event.script.id, title: event.script.title, total_slots: event.script.total_slots },
+          script: { id: event.script.id, title: event.script.title, total_slots: event.script.total_slots,
+                    male_slots: event.script.male_slots, female_slots: event.script.female_slots, any_slots: event.script.any_slots },
           host: { id: event.host.id, nickname: event.host.nickname },
+          host_in_game: event.host_in_game,
           scheduled_at: event.scheduled_at,
           location: event.location,
           status: event.status,

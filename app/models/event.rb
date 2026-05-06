@@ -5,11 +5,10 @@ class Event < ApplicationRecord
   has_many :event_members, dependent: :destroy
   has_many :members, through: :event_members, source: :user
 
-  enum :status, { recruiting: 0, full: 1, completed: 2, cancelled: 3 }
+  enum :status, { recruiting: 0, full: 1, completed: 2, cancelled: 3 }, default: :recruiting
 
   validates :scheduled_at, presence: true
   validates :location, presence: true
-  validates :status, presence: true
 
   def total_slots
     script.total_slots
@@ -20,7 +19,7 @@ class Event < ApplicationRecord
   end
 
   def available_slots
-    total_slots - confirmed_count
+    total_slots - (host_in_game? ? 1 : 0) - confirmed_count
   end
 
   def sync_status

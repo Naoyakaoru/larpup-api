@@ -30,11 +30,11 @@ module Api
       private
 
       def register_params
-        params.permit(:email, :password, :password_confirmation, :nickname)
+        params.permit(:email, :password, :password_confirmation, :nickname, :gender)
       end
 
       def user_json(user)
-        { id: user.id, email: user.email, nickname: user.nickname, is_admin: user.is_admin }
+        { id: user.id, email: user.email, nickname: user.nickname, gender: user.gender, is_admin: user.is_admin }
       end
     end
   end
