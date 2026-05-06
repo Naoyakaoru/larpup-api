@@ -2,8 +2,9 @@ require "rails_helper"
 
 RSpec.describe Event, type: :model do
   let(:script) { create(:script, male_slots: 1, female_slots: 1, any_slots: 0) }
+  let(:script_version) { create(:script_version, script: script) }
   let(:host) { create(:user, :male) }
-  let(:event) { create(:event, script: script, host: host) }
+  let(:event) { create(:event, script_version: script_version, host: host) }
 
   describe "#sync_status" do
     it "sets status to full when confirmed_count reaches total_slots" do
@@ -52,7 +53,7 @@ RSpec.describe Event, type: :model do
 
   describe "#available_slots" do
     it "returns total_slots minus confirmed_count" do
-      expect(event.available_slots).to eq(script.total_slots)
+      expect(event.available_slots).to eq(script_version.script.total_slots)
     end
   end
 

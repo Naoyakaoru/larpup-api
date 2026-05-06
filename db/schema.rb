@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_06_054955) do
+ActiveRecord::Schema[7.2].define(version: 2026_05_06_162208) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -71,7 +71,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_06_054955) do
   end
 
   create_table "events", force: :cascade do |t|
-    t.bigint "script_id", null: false
     t.bigint "host_id", null: false
     t.datetime "scheduled_at"
     t.string "location"
@@ -82,8 +81,22 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_06_054955) do
     t.integer "offline_male", default: 0, null: false
     t.integer "offline_female", default: 0, null: false
     t.datetime "deleted_at"
+    t.bigint "script_version_id"
     t.index ["host_id"], name: "index_events_on_host_id"
-    t.index ["script_id"], name: "index_events_on_script_id"
+    t.index ["script_version_id"], name: "index_events_on_script_version_id"
+  end
+
+  create_table "script_versions", force: :cascade do |t|
+    t.bigint "script_id", null: false
+    t.bigint "store_id"
+    t.string "version_name"
+    t.integer "price"
+    t.boolean "available"
+    t.decimal "duration_override"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["script_id"], name: "index_script_versions_on_script_id"
+    t.index ["store_id"], name: "index_script_versions_on_store_id"
   end
 
   create_table "scripts", force: :cascade do |t|
@@ -96,7 +109,15 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_06_054955) do
     t.integer "any_slots"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.decimal "duration"
     t.index ["genres"], name: "index_scripts_on_genres", using: :gin
+  end
+
+  create_table "stores", force: :cascade do |t|
+    t.string "name"
+    t.string "status"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "users", force: :cascade do |t|
@@ -107,7 +128,10 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_06_054955) do
     t.datetime "updated_at", null: false
     t.boolean "is_admin", default: false, null: false
     t.string "gender", default: "other", null: false
+    t.boolean "show_hosted_events", default: false, null: false
+    t.string "handle", null: false
     t.index ["email"], name: "index_users_on_email", unique: true
+    t.index ["handle"], name: "index_users_on_handle", unique: true
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
@@ -115,6 +139,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_06_054955) do
   add_foreign_key "audit_logs", "users"
   add_foreign_key "event_members", "events"
   add_foreign_key "event_members", "users"
-  add_foreign_key "events", "scripts"
+  add_foreign_key "events", "script_versions"
   add_foreign_key "events", "users", column: "host_id"
+  add_foreign_key "script_versions", "scripts"
+  add_foreign_key "script_versions", "stores"
 end

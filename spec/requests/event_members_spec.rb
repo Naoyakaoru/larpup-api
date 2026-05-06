@@ -4,7 +4,8 @@ RSpec.describe "EventMembers", type: :request do
   let(:host) { create(:user, :male) }
   let(:applicant) { create(:user, :female) }
   let(:script) { create(:script, male_slots: 2, female_slots: 2) }
-  let!(:event) { create(:event, script: script, host: host) }
+  let(:script_version) { create(:script_version, script: script) }
+  let!(:event) { create(:event, script_version: script_version, host: host) }
   let!(:member) { create(:event_member, event: event, user: applicant) }
 
   let(:json) { JSON.parse(response.body) }
@@ -65,7 +66,8 @@ RSpec.describe "EventMembers", type: :request do
 
     it "syncs event status to full after confirming enough members" do
       small_script = create(:script, male_slots: 1, female_slots: 1, any_slots: 0)
-      small_event = create(:event, script: small_script, host: host)
+      small_version = create(:script_version, script: small_script)
+      small_event = create(:event, script_version: small_version, host: host)
       create(:event_member, :confirmed, event: small_event, user: create(:user, :male))
       pending_m = create(:event_member, event: small_event, user: applicant)
 
@@ -74,6 +76,25 @@ RSpec.describe "EventMembers", type: :request do
         headers: { "Content-Type" => "application/json" }.merge(auth_header(host))
 
       expect(small_event.reload).to be_full
+    end
+
+    it "syncs event status back to recruiting when host approves a leave request" do
+      small_script = create(:script, male_slots: 1, female_slots: 1, any_slots: 0)
+      small_version = create(:script_version, script: small_script)
+      small_event = create(:event, script_version: small_version, host: host)
+      male_member = create(:event_member, :confirmed, event: small_event, user: create(:user, :male))
+      female_member = create(:event_member, :confirmed, event: small_event, user: applicant)
+      small_event.sync_status
+      expect(small_event.reload).to be_full
+
+      female_member.request_leave!
+
+      patch "/api/v1/events/#{small_event.id}/members/#{female_member.id}",
+        params: { status: "cancelled" }.to_json,
+        headers: { "Content-Type" => "application/json" }.merge(auth_header(host))
+
+      expect(response).to have_http_status(:ok)
+      expect(small_event.reload).to be_recruiting
     end
   end
 end

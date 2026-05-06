@@ -1,6 +1,6 @@
 FactoryBot.define do
   factory :event do
-    association :script
+    association :script_version
     association :host, factory: :user
     scheduled_at { 1.week.from_now }
     location { "台北" }

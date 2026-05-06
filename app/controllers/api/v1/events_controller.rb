@@ -7,10 +7,18 @@ module Api
       before_action :require_host!, only: [ :update, :destroy, :restore, :cancel ]
 
       def index
-        events = Event.includes(:script, :host).all
+        events = Event.includes(script_version: :script).merge(Event.includes(:host)).all
         events = events.where(status: params[:status]) if params[:status].present?
-        events = events.where(script_id: params[:script_id]) if params[:script_id].present?
-        events = events.where("scheduled_at >= ?", Date.parse(params[:date])) if params[:date].present?
+        if params[:script_id].present?
+          version_ids = ScriptVersion.where(script_id: params[:script_id]).pluck(:id)
+          events = events.where(script_version_id: version_ids)
+        end
+        if params[:date].present?
+          events = events.where("scheduled_at >= ?", Date.parse(params[:date]))
+        else
+          events = events.where("scheduled_at >= ?", Time.current)
+        end
+        events = events.order(scheduled_at: :asc)
         render json: events.map { |e| EventSerializer.new(e).as_json }
       end
 
@@ -20,6 +28,10 @@ module Api
 
       def create
         event = current_user.hosted_events.build(event_params)
+        if event.script_version_id.nil? && params[:script_id].present?
+          script = Script.find_by(id: params[:script_id])
+          event.script_version = script&.script_versions&.order(created_at: :desc)&.first
+        end
         if event.save
           if ActiveModel::Type::Boolean.new.cast(params[:host_in_game])
             event.event_members.create!(
@@ -75,7 +87,7 @@ module Api
           return render json: { error: "活動已無法取消" }, status: :unprocessable_entity
         end
 
-        @event.update_column(:status, Event.statuses[:cancelled])
+        @event.cancel!
         render json: EventSerializer.new(@event, detail: true).as_json
       end
 
@@ -137,7 +149,7 @@ module Api
       private
 
       def set_event
-        @event = Event.unscoped.includes(:script, :host).find(params[:id])
+        @event = Event.unscoped.includes(script_version: :script).merge(Event.unscoped.includes(:host)).find(params[:id])
       rescue ActiveRecord::RecordNotFound
         render json: { error: "Event not found" }, status: :not_found
       end
@@ -147,7 +159,7 @@ module Api
       end
 
       def slot_available_for?(effective_gender)
-        script = @event.script
+        script = @event.script_version.script
         confirmed = @event.event_members.confirmed.includes(:user)
 
         male_filled = @event.offline_male
@@ -181,7 +193,7 @@ module Api
       end
 
       def event_params
-        params.permit(:script_id, :scheduled_at, :location, :status, :allow_cross_gender, :offline_male, :offline_female)
+        params.permit(:script_version_id, :scheduled_at, :location, :status, :allow_cross_gender, :offline_male, :offline_female)
       end
 
       def location_only_params

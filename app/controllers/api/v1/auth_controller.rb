@@ -34,7 +34,16 @@ module Api
       end
 
       def user_json(user)
-        { id: user.id, email: user.email, nickname: user.nickname, gender: user.gender, is_admin: user.is_admin }
+        {
+          id: user.id,
+          handle: user.handle,
+          email: user.email,
+          nickname: user.nickname,
+          gender: user.gender,
+          avatar_url: user.avatar.attached? ? url_for(user.avatar) : nil,
+          is_admin: user.is_admin,
+          show_hosted_events: user.show_hosted_events
+        }
       end
     end
   end

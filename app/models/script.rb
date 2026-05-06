@@ -1,7 +1,8 @@
 class Script < ApplicationRecord
   has_one_attached :cover_image
 
-  has_many :events, dependent: :destroy
+  has_many :script_versions, dependent: :destroy
+  has_many :events, through: :script_versions
 
   GENRES = {
     mystery: 0,
