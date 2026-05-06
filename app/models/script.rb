@@ -1,4 +1,6 @@
 class Script < ApplicationRecord
+  has_one_attached :cover_image
+
   has_many :events, dependent: :destroy
 
   GENRES = {

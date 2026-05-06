@@ -25,11 +25,16 @@ module Api
       private
 
       def user_params
-        params.permit(:nickname)
+        params.permit(:nickname, :email, :password, :password_confirmation, :avatar)
       end
 
       def user_json(user)
-        { id: user.id, email: user.email, nickname: user.nickname }
+        {
+          id: user.id,
+          email: user.email,
+          nickname: user.nickname,
+          avatar_url: user.avatar.attached? ? url_for(user.avatar) : nil
+        }
       end
 
       def event_json(event)

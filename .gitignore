@@ -1,0 +1,26 @@
+# Ignore bundler config.
+/.bundle
+
+# Ignore all environment files.
+.env
+.env.*
+
+# Ignore all logfiles and tempfiles.
+/log/*
+/tmp/*
+!/log/.keep
+!/tmp/.keep
+
+# Ignore storage (uploaded files in development).
+/storage/*
+!/storage/.keep
+
+# Ignore master key for decrypting credentials and more.
+/config/master.key
+/config/credentials/*.key
+
+# Ignore bootsnap cache.
+/tmp/cache/bootsnap*
+
+# Claude
+.claude/auto-context.md

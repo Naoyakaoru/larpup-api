@@ -2,6 +2,7 @@ module Api
   module V1
     class ScriptsController < ApplicationController
       skip_before_action :authenticate!, only: [ :index, :show ]
+      before_action :require_admin!, only: [ :create, :update ]
 
       def index
         scripts = Script.all
@@ -40,7 +41,7 @@ module Api
       private
 
       def script_params
-        params.permit(:title, :difficulty, :description, :male_slots, :female_slots, :any_slots, genres: [])
+        params.permit(:title, :difficulty, :description, :male_slots, :female_slots, :any_slots, :cover_image, genres: [])
       end
 
       def script_json(script)
@@ -53,7 +54,8 @@ module Api
           female_slots: script.female_slots,
           any_slots: script.any_slots,
           total_slots: script.total_slots,
-          description: script.description
+          description: script.description,
+          cover_image_url: script.cover_image.attached? ? url_for(script.cover_image) : nil
         }
       end
     end

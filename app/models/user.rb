@@ -1,6 +1,8 @@
 class User < ApplicationRecord
   has_secure_password
 
+  has_one_attached :avatar
+
   has_many :hosted_events, class_name: "Event", foreign_key: :host_id, dependent: :destroy
   has_many :event_members, dependent: :destroy
   has_many :joined_events, through: :event_members, source: :event
