@@ -1,5 +1,5 @@
 module JwtAuthenticatable
-  SECRET = Rails.application.secret_key_base
+  SECRET = ENV.fetch("SECRET_KEY_BASE")
 
   def self.encode(payload)
     JWT.encode(payload.merge(exp: 30.days.from_now.to_i), SECRET, "HS256")

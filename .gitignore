@@ -15,8 +15,9 @@
 /storage/*
 !/storage/.keep
 
-# Ignore master key for decrypting credentials and more.
+# Ignore master key and credentials (using .env instead)
 /config/master.key
+/config/credentials.yml.enc
 /config/credentials/*.key
 
 # Ignore bootsnap cache.

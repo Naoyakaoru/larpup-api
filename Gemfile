@@ -30,6 +30,12 @@ gem "image_processing", "~> 1.2"
 # Cloudflare R2 / S3-compatible storage
 gem "aws-sdk-s3", require: false
 
+# State machine for EventMember
+gem "aasm"
+
+# Load .env file into ENV
+gem "dotenv-rails", groups: [:development, :test]
+
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem

@@ -25,6 +25,7 @@ module Api
             event.event_members.create!(
               user: current_user,
               status: :confirmed,
+              confirmed_at: Time.current,
               cross_gender: ActiveModel::Type::Boolean.new.cast(params[:host_cross_gender])
             )
           end
@@ -76,10 +77,14 @@ module Api
           return render json: { error: "Event is cancelled" }, status: :unprocessable_entity
         end
 
-        member = @event.event_members.find_or_initialize_by(user_id: current_user.id)
+        member = @event.event_members.find_by(user_id: current_user.id)
 
-        if member.persisted?
+        if member&.active_member?
           return render json: { error: "Already joined" }, status: :unprocessable_entity
+        end
+
+        if member&.rejected?
+          return render json: { error: "已被拒絕，無法重新申請" }, status: :unprocessable_entity
         end
 
         cross_gender = params[:cross_gender] && @event.allow_cross_gender
@@ -89,11 +94,17 @@ module Api
           return render json: { error: "沒有符合性別的空位" }, status: :unprocessable_entity
         end
 
-        member.assign_attributes(status: :pending, cross_gender: cross_gender)
-        if member.save
+        if member&.cancelled?
+          member.update!(cross_gender: cross_gender)
+          member.reapply!
           render json: { message: "Join request sent" }, status: :created
         else
-          render json: { errors: member.errors.full_messages }, status: :unprocessable_entity
+          member = @event.event_members.build(user: current_user, status: :pending, cross_gender: cross_gender)
+          if member.save
+            render json: { message: "Join request sent" }, status: :created
+          else
+            render json: { errors: member.errors.full_messages }, status: :unprocessable_entity
+          end
         end
       end
 
@@ -102,10 +113,10 @@ module Api
         return render json: { error: "Not a member" }, status: :not_found unless member
 
         if member.confirmed?
-          member.leave_requested!
+          member.request_leave!
           render json: { message: "Leave request sent, waiting for host approval" }
         elsif member.pending?
-          member.cancelled!
+          member.cancel!
           render json: { message: "Left event" }
         else
           render json: { error: "Cannot leave in current status" }, status: :unprocessable_entity
