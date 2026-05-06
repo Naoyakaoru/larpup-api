@@ -17,7 +17,7 @@ class ScriptSerializer
       total_slots: @script.total_slots,
       description: @script.description,
       status: @script.status,
-      duration: @script.duration,
+      duration: @script.duration&.to_f,
       cover_image_url: cover_image_url
     }
   end
