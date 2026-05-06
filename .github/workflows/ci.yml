@@ -28,6 +28,7 @@ jobs:
     env:
       RAILS_ENV: test
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/larpup_api_test
+      SECRET_KEY_BASE: test_secret_key_base_not_used_in_production_only_for_ci
 
     steps:
       - uses: actions/checkout@v4
