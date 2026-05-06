@@ -7,7 +7,7 @@ class User < ApplicationRecord
   has_many :event_members, dependent: :destroy
   has_many :joined_events, through: :event_members, source: :event
 
-  GENDERS = %w[male female other].freeze
+  GENDERS = %w[male female].freeze
 
   validates :email, presence: true, uniqueness: { case_sensitive: false }, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :nickname, presence: true

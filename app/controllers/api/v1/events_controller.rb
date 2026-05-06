@@ -43,8 +43,12 @@ module Api
       end
 
       def destroy
-        @event.cancelled!
-        render json: { message: "Event cancelled" }
+        if @event.event_members.exists?
+          return render json: { error: "已有人申請，無法刪除" }, status: :unprocessable_entity
+        end
+
+        @event.destroy!
+        render json: { message: "Event deleted" }
       end
 
       def join
@@ -63,6 +67,12 @@ module Api
         end
 
         cross_gender = params[:cross_gender] && @event.allow_cross_gender
+        effective_gender = cross_gender ? (current_user.gender == "male" ? "female" : "male") : current_user.gender
+
+        unless slot_available_for?(effective_gender)
+          return render json: { error: "沒有符合性別的空位" }, status: :unprocessable_entity
+        end
+
         member.assign_attributes(status: :pending, cross_gender: cross_gender)
         if member.save
           render json: { message: "Join request sent" }, status: :created
@@ -98,6 +108,36 @@ module Api
         render json: { error: "Forbidden" }, status: :forbidden unless @event.host_id == current_user.id
       end
 
+      def slot_available_for?(effective_gender)
+        script = @event.script
+        confirmed = @event.event_members.confirmed.includes(:user)
+
+        male_filled = @event.offline_male
+        female_filled = @event.offline_female
+        any_filled = 0
+
+        confirmed.each do |m|
+          eg = m.cross_gender ? (m.user.gender == "male" ? "female" : "male") : m.user.gender
+          if eg == "male" && male_filled < script.male_slots
+            male_filled += 1
+          elsif eg == "female" && female_filled < script.female_slots
+            female_filled += 1
+          else
+            any_filled += 1
+          end
+        end
+
+        remaining_male = [ script.male_slots - male_filled, 0 ].max
+        remaining_female = [ script.female_slots - female_filled, 0 ].max
+        remaining_any = [ script.any_slots - any_filled, 0 ].max
+
+        if effective_gender == "male"
+          remaining_male > 0 || remaining_any > 0
+        else
+          remaining_female > 0 || remaining_any > 0
+        end
+      end
+
       def event_params
         params.permit(:script_id, :scheduled_at, :location, :status, :allow_cross_gender, :offline_male, :offline_female)
       end
@@ -106,7 +146,8 @@ module Api
         json = {
           id: event.id,
           script: { id: event.script.id, title: event.script.title, total_slots: event.script.total_slots,
-                    male_slots: event.script.male_slots, female_slots: event.script.female_slots, any_slots: event.script.any_slots },
+                    male_slots: event.script.male_slots, female_slots: event.script.female_slots, any_slots: event.script.any_slots,
+                    difficulty: event.script.difficulty, genres: event.script.genres },
           host: { id: event.host.id, nickname: event.host.nickname },
           allow_cross_gender: event.allow_cross_gender,
           offline_male: event.offline_male,
@@ -120,7 +161,7 @@ module Api
 
         if detail
           json[:members] = event.event_members.includes(:user).map do |m|
-            { id: m.id, user: { id: m.user.id, nickname: m.user.nickname }, status: m.status, cross_gender: m.cross_gender }
+            { id: m.id, user: { id: m.user.id, nickname: m.user.nickname, gender: m.user.gender }, status: m.status, cross_gender: m.cross_gender }
           end
         end
 
