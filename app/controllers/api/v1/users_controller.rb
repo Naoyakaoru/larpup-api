@@ -33,7 +33,8 @@ module Api
           id: user.id,
           email: user.email,
           nickname: user.nickname,
-          avatar_url: user.avatar.attached? ? url_for(user.avatar) : nil
+          avatar_url: user.avatar.attached? ? url_for(user.avatar) : nil,
+          is_admin: user.is_admin
         }
       end
 

@@ -1,0 +1,12 @@
+#!/usr/bin/env ruby
+# Usage: bin/make_admin <email>
+require_relative '../config/environment'
+
+email = ARGV[0]
+abort "Usage: bin/make_admin <email>" if email.nil?
+
+user = User.find_by(email: email)
+abort "User not found: #{email}" unless user
+
+user.update!(is_admin: true)
+puts "Done! #{user.nickname} (#{user.email}) is now an admin."
