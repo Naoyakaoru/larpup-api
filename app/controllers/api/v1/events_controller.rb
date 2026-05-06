@@ -88,7 +88,7 @@ module Api
       end
 
       def event_params
-        params.permit(:script_id, :scheduled_at, :location, :status, :host_in_game, :allow_cross_gender)
+        params.permit(:script_id, :scheduled_at, :location, :status, :host_in_game, :host_cross_gender, :allow_cross_gender)
       end
 
       def event_json(event, detail: false)
@@ -98,6 +98,7 @@ module Api
                     male_slots: event.script.male_slots, female_slots: event.script.female_slots, any_slots: event.script.any_slots },
           host: { id: event.host.id, nickname: event.host.nickname },
           host_in_game: event.host_in_game,
+          host_cross_gender: event.host_cross_gender,
           allow_cross_gender: event.allow_cross_gender,
           scheduled_at: event.scheduled_at,
           location: event.location,
