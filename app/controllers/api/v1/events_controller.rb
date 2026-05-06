@@ -11,11 +11,11 @@ module Api
         events = events.where(status: params[:status]) if params[:status].present?
         events = events.where(script_id: params[:script_id]) if params[:script_id].present?
         events = events.where("scheduled_at >= ?", Date.parse(params[:date])) if params[:date].present?
-        render json: events.map { |e| event_json(e) }
+        render json: events.map { |e| EventSerializer.new(e).as_json }
       end
 
       def show
-        render json: event_json(@event, detail: true)
+        render json: EventSerializer.new(@event, detail: true).as_json
       end
 
       def create
@@ -28,7 +28,7 @@ module Api
               cross_gender: ActiveModel::Type::Boolean.new.cast(params[:host_cross_gender])
             )
           end
-          render json: event_json(event), status: :created
+          render json: EventSerializer.new(event).as_json, status: :created
         else
           render json: { errors: event.errors.full_messages }, status: :unprocessable_entity
         end
@@ -36,7 +36,7 @@ module Api
 
       def update
         if @event.update(event_params)
-          render json: event_json(@event)
+          render json: EventSerializer.new(@event).as_json
         else
           render json: { errors: @event.errors.full_messages }, status: :unprocessable_entity
         end
@@ -140,32 +140,6 @@ module Api
 
       def event_params
         params.permit(:script_id, :scheduled_at, :location, :status, :allow_cross_gender, :offline_male, :offline_female)
-      end
-
-      def event_json(event, detail: false)
-        json = {
-          id: event.id,
-          script: { id: event.script.id, title: event.script.title, total_slots: event.script.total_slots,
-                    male_slots: event.script.male_slots, female_slots: event.script.female_slots, any_slots: event.script.any_slots,
-                    difficulty: event.script.difficulty, genres: event.script.genres },
-          host: { id: event.host.id, nickname: event.host.nickname },
-          allow_cross_gender: event.allow_cross_gender,
-          offline_male: event.offline_male,
-          offline_female: event.offline_female,
-          scheduled_at: event.scheduled_at,
-          location: event.location,
-          status: event.status,
-          confirmed_count: event.confirmed_count,
-          available_slots: event.available_slots
-        }
-
-        if detail
-          json[:members] = event.event_members.includes(:user).map do |m|
-            { id: m.id, user: { id: m.user.id, nickname: m.user.nickname, gender: m.user.gender }, status: m.status, cross_gender: m.cross_gender }
-          end
-        end
-
-        json
       end
     end
   end

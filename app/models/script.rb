@@ -27,7 +27,13 @@ class Script < ApplicationRecord
     modern: "現代"
   }.freeze
 
+  DIFFICULTY_LABELS = { easy: "入門", medium: "進階", hard: "燒腦" }.freeze
+
   enum :difficulty, { easy: 0, medium: 1, hard: 2 }
+
+  def difficulty_label
+    DIFFICULTY_LABELS[difficulty.to_sym]
+  end
 
   validates :title, presence: true
   validates :difficulty, presence: true
