@@ -170,7 +170,7 @@ def fetch_page(headers: dict, offset: int) -> dict:
     payload = {
         "limit": BATCH,
         "offset": offset,
-        "orderBy": "new",
+        "orderBy": "hot",
         "scene": "1column",
         "typeId": TYPE_ID,
         "withMarkStatus": True,
@@ -199,7 +199,7 @@ def main():
     print(f"Total: {total}  |  fetched: {len(all_items)}")
 
     offset = BATCH
-    cap = min(total, 500)  # newest 500
+    cap = min(total, 1000)  # hot 1000
     while offset < cap:
         data = fetch_page(headers, offset)
         if data.get("code") != 0 or not data.get("data"):
