@@ -214,7 +214,7 @@ def main():
         time.sleep(0.3)
 
     print(f"\nParsing {len(all_items)} items...")
-    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    timestamp = f"{time.strftime('%Y%m%d')}_{int(time.time())}"
     out_path = Path(__file__).parent / f"qiandao_scripts_{timestamp}.csv"
     fieldnames = [
         "id", "title", "rating", "wish_count",
