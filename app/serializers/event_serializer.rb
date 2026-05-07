@@ -15,6 +15,7 @@ class EventSerializer
       scheduled_at: @event.scheduled_at,
       location: @event.location,
       status: @event.status,
+      script_version_id: @event.script_version_id,
       confirmed_count: @event.confirmed_count,
       available_slots: @event.available_slots,
       deleted_at: @event.deleted_at
