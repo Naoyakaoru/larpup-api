@@ -28,9 +28,15 @@ module Api
         def bulk_import
           rows = params.require(:scripts)
           created = 0
+          skipped = 0
           errors = []
 
           rows.each_with_index do |row, i|
+            if Script.exists?(title: row[:title])
+              skipped += 1
+              next
+            end
+
             script = Script.new(
               title: row[:title],
               difficulty: row[:difficulty],
@@ -50,7 +56,7 @@ module Api
             end
           end
 
-          render json: { created: created, errors: errors }
+          render json: { created: created, skipped: skipped, errors: errors }
         end
       end
     end

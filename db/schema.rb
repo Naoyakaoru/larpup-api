@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_07_070439) do
+ActiveRecord::Schema[7.2].define(version: 2026_05_07_075137) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -114,6 +114,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_07_070439) do
     t.string "status", default: "approved", null: false
     t.string "publisher"
     t.index ["genres"], name: "index_scripts_on_genres", using: :gin
+    t.index ["title"], name: "index_scripts_on_title", unique: true
   end
 
   create_table "stores", force: :cascade do |t|
