@@ -16,18 +16,6 @@ class Script < ApplicationRecord
     modern: 8
   }.freeze
 
-  GENRE_LABELS = {
-    mystery: "推理",
-    restoration: "還原",
-    horror: "恐怖",
-    romance: "情感",
-    comedy: "歡樂",
-    mechanism: "機制",
-    faction: "陣營",
-    ancient: "古風",
-    modern: "現代"
-  }.freeze
-
   enum :difficulty, { easy: 0, medium: 1, hard: 2 }
   enum :status, { pending: "pending", approved: "approved", rejected: "rejected" }, default: :approved
 
@@ -39,10 +27,6 @@ class Script < ApplicationRecord
 
   def total_slots
     male_slots.to_i + female_slots.to_i + any_slots.to_i
-  end
-
-  def genre_labels
-    (genres || []).map { |g| GENRE_LABELS[GENRES.key(g)] }
   end
 
   private

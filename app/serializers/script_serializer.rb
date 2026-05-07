@@ -8,7 +8,7 @@ class ScriptSerializer
     {
       id: @script.id,
       title: @script.title,
-      genres: @script.genre_labels,
+      genres: @script.genres,
       difficulty: @script.difficulty,
       male_slots: @script.male_slots,
       female_slots: @script.female_slots,
