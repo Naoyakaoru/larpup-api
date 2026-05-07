@@ -214,7 +214,8 @@ def main():
         time.sleep(0.3)
 
     print(f"\nParsing {len(all_items)} items...")
-    out_path = Path(__file__).parent / "qiandao_scripts.csv"
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    out_path = Path(__file__).parent / f"qiandao_scripts_{timestamp}.csv"
     fieldnames = [
         "id", "title", "rating", "wish_count",
         "total_slots", "male_slots", "female_slots", "any_slots",
@@ -284,7 +285,7 @@ def main():
             "publisher": publisher,
             "cover_url": item.get("cover", ""),
             "key_property_content": key_content,
-            "description": description,
+            "description": description.replace("\n", "\\n"),
         })
 
     with open(out_path, "w", newline="", encoding="utf-8") as f:
