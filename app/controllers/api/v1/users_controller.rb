@@ -2,6 +2,7 @@ module Api
   module V1
     class UsersController < ApplicationController
       skip_before_action :authenticate!, only: [ :show ]
+      before_action :require_admin!, only: [ :search ]
 
       def me
         render json: user_json(current_user)
@@ -18,6 +19,19 @@ module Api
         else
           render json: { errors: current_user.errors.full_messages }, status: :unprocessable_entity
         end
+      end
+
+      def stores
+        owned = current_user.owned_stores.order(:name).map do |s|
+          { id: s.id, name: s.name, status: s.status, role: "owner" }
+        end
+        render json: owned
+      end
+
+      def search
+        q = params[:q].to_s.strip
+        users = q.length >= 1 ? User.where("nickname ILIKE :q OR handle ILIKE :q", q: "%#{q}%").limit(10) : []
+        render json: users.map { |u| user_json(u) }
       end
 
       def events

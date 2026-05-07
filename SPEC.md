@@ -292,7 +292,91 @@ MVP 階段預計費用：**$0**
 |------|------|------|
 | Script 由誰建立？ | Admin-only（`is_admin` flag on User） | 資料量有限、品質需一致、避免審核流程複雜度 |
 | Location 欄位設計？ | 永遠是 free text string | 店家局填店名地址，自辦局填場地；不需綁 Store FK |
-| 有沒有 Store 模型？ | 暫無，Phase 2+ 再加 StoreScript | 目前沒有店家要加入 |
+| 有沒有 Store 模型？ | 有，Phase 2 開始 | Admin 建立店家並指定 owner |
+| Store 權限管理方式？ | Role per store（`store_staff` table） | 全站 role 太粗、純資源 read/write 太複雜；role per store 是中間最務實的方案（參考 Shopify staff、Notion workspace member） |
+
+### Store 權限架構（待實作）
+
+**`store_staff` table**
+```
+store_staff
+  id
+  store_id   FK → stores
+  user_id    FK → users
+  role       enum: owner | manager | staff
+```
+
+- `owner`：完整管理權（目前由 `stores.owner_id` 代替，待遷移）
+- `manager`：可建立/管理活動、審核成員，不能更改店家設定或刪除店家
+- `staff`：TBD
+
+**查詢方式**
+```ruby
+# 取得 user 在某 store 的 role
+store_staff.find_by(store_id:, user_id:)&.role
+
+# 取得 user 有權限的所有 store
+user.store_staffs.includes(:store)
+```
+
+**遷移路徑**：`stores.owner_id` → 建立 `store_staff` 後改為從該 table 判斷 owner
+
+---
+
+### ScriptVersion 新增邏輯（待實作）
+
+#### 兩種情境
+
+**情境 A：Script 已存在**
+1. 找到現有 base ScriptVersion（`store_id = nil`）
+2. 建立 store ScriptVersion（`store_id = X`，`price` = 使用者輸入，`duration_override` = 使用者輸入（可選））
+3. 使用者只能編輯自己 store 的 ScriptVersion，不影響 `script.duration`（admin 管理）
+
+**情境 B：Script 不存在（全新劇本）**
+1. 建立 Script（狀態 `pending`，待 admin 審核；`duration` = 使用者輸入值）
+2. 建立 base ScriptVersion（`store_id = nil`，`price = null`，`duration_override = null`）← 繼承 script.duration
+3. 建立 store ScriptVersion（`store_id = X`，`price` = 使用者輸入，`duration_override` = 使用者輸入）← 顯式鎖定，未來 admin 改 script.duration 不影響此店
+4. ⚠️ 需要 admin 審核通過後才公開顯示
+
+**欄位對照（情境 B）**
+| | script.duration | duration_override | price |
+|---|---|---|---|
+| Script | 使用者輸入 | — | — |
+| Base ScriptVersion | — | null | null |
+| Store ScriptVersion | — | 使用者輸入（同 script.duration，顯式鎖定） | 使用者輸入 |
+
+#### ScriptVersion 欄位規則
+- `price`：必填（不可為 null）
+- `available`：新增時預設 `true`
+- `duration_override`：可選，覆蓋 `script.duration`
+- `version_name`：可選，顯示用（如「標準版」「體驗版」）
+
+#### Audit Log
+ScriptVersion 的所有異動（新增、修改 price/available/duration_override）都需寫入 audit log。
+
+使用現有共用 `audit_logs` table（polymorphic）：
+```ruby
+AuditLog.create!(
+  auditable: script_version,
+  user: current_user,
+  action: "created" | "updated",
+  metadata: { changes: { price: [old, new], ... } }
+)
+```
+
+#### Script 審核流程（新增劇本時）
+- Script 新增後狀態為 `pending`
+- Admin 在後台審核（approve / reject）
+- 只有 `approved` 的 Script 才在公開頁面顯示
+- 需在 Script model 加 `status` 欄位：`pending | approved | rejected`
+
+#### 前端 UI 流程
+1. 搜尋現有劇本（autocomplete）
+2. 找不到 → 切換「新增劇本」表單（填 title、難度、人數、類型）
+3. 填入此店版本的 price（必填）、duration_override（選填）、version_name（選填）
+4. 送出
+
+---
 
 ### 未來 StoreScript 擴充方向（Phase 2+）
 

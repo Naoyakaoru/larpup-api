@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_06_162208) do
+ActiveRecord::Schema[7.2].define(version: 2026_05_06_221450) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -110,6 +110,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_06_162208) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.decimal "duration"
+    t.string "status", default: "approved", null: false
     t.index ["genres"], name: "index_scripts_on_genres", using: :gin
   end
 
@@ -118,6 +119,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_06_162208) do
     t.string "status"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "owner_id", null: false
+    t.index ["owner_id"], name: "index_stores_on_owner_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -143,4 +146,5 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_06_162208) do
   add_foreign_key "events", "users", column: "host_id"
   add_foreign_key "script_versions", "scripts"
   add_foreign_key "script_versions", "stores"
+  add_foreign_key "stores", "users", column: "owner_id"
 end

@@ -3,16 +3,41 @@ Rails.application.routes.draw do
 
   namespace :api do
     namespace :v1 do
-      post "auth/register", to: "auth#register"
-      post "auth/login",    to: "auth#login"
-      delete "auth/logout", to: "auth#logout"
+      resources :auth, only: [] do
+        collection do
+          post :register
+          post :login
+          delete :logout
+        end
+      end
 
-      get   "users/me",       to: "users#me"
-      patch "users/me",       to: "users#update"
-      get   "users/me/events", to: "users#events"
-      get   "users/:handle",   to: "users#show"
+      resources :users, only: [ :show ], param: :handle do
+        collection do
+          get   :me
+          patch :me, action: :update
+          get   "me/events", action: :events
+          get   "me/stores", action: :stores
+          get   :search
+        end
+      end
 
-      resources :scripts, only: [ :index, :show, :create, :update ]
+      resources :scripts, only: [ :index, :show, :create, :update ] do
+        resources :versions, only: [ :index ], controller: "script_versions"
+      end
+
+      resources :stores, only: [ :index ] do
+        resources :script_versions, only: [ :index, :create, :update ], controller: "store_script_versions"
+      end
+
+      namespace :admin do
+        resources :stores, only: [ :index, :create ]
+        resources :scripts, only: [ :index ] do
+          member do
+            patch :approve
+            patch :reject
+          end
+        end
+      end
 
       resources :events, only: [ :index, :show, :create, :update, :destroy ] do
         member do

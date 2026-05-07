@@ -7,7 +7,7 @@ module Api
       before_action :require_host!, only: [ :update, :destroy, :restore, :cancel ]
 
       def index
-        events = Event.includes(script_version: :script).merge(Event.includes(:host)).all
+        events = Event.includes(script_version: :script).includes(:host)
         events = events.where(status: params[:status]) if params[:status].present?
         if params[:script_id].present?
           version_ids = ScriptVersion.where(script_id: params[:script_id]).pluck(:id)
@@ -30,7 +30,7 @@ module Api
         event = current_user.hosted_events.build(event_params)
         if event.script_version_id.nil? && params[:script_id].present?
           script = Script.find_by(id: params[:script_id])
-          event.script_version = script&.script_versions&.order(created_at: :desc)&.first
+          event.script_version = script&.script_versions&.find_by(store_id: nil)
         end
         if event.save
           if ActiveModel::Type::Boolean.new.cast(params[:host_in_game])
