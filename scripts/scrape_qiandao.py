@@ -46,6 +46,7 @@ GENRE_MAP = {
     "推理": 0, "還原": 1, "恐怖": 2, "情感": 3,
     "歡樂": 4, "機制": 5, "陣營": 6, "古風": 7, "現代": 8,
     "日式": 9, "中式": 10, "民國": 11, "社會": 12, "刑偵": 13, "演繹": 14,
+    "城限": 15, "獨家": 16,
 }
 
 def normalize_genres(raw: str) -> str:
@@ -223,6 +224,7 @@ def main():
         "genres", "genres_norm",
         "duration_hours",
         "publisher", "cover_url", "key_property_content",
+        "description",
     ]
 
     rows = []
@@ -247,6 +249,10 @@ def main():
         title = s2t(item["name"])
         publisher = s2t(item.get("mainTagDisplayName", ""))
         key_content = s2t(item.get("keyPropertyContent", ""))
+        description = s2t(
+            item.get("summary") or item.get("description") or
+            item.get("brief") or item.get("intro") or ""
+        )
 
         rows.append({
             "id": item["id"],
@@ -266,6 +272,7 @@ def main():
             "publisher": publisher,
             "cover_url": item.get("cover", ""),
             "key_property_content": key_content,
+            "description": description,
         })
 
     with open(out_path, "w", newline="", encoding="utf-8") as f:

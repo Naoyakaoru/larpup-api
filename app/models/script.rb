@@ -19,7 +19,9 @@ class Script < ApplicationRecord
     republican: 11,
     social: 12,
     detective: 13,
-    performance: 14
+    performance: 14,
+    city_exclusive: 15,
+    exclusive: 16
   }.freeze
 
   enum :difficulty, { easy: 0, medium: 1, hard: 2 }

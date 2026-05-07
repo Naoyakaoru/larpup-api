@@ -40,6 +40,7 @@ module Api
               any_slots: row[:any_slots].to_i,
               duration: row[:duration].presence,
               description: row[:description].presence || "",
+              publisher: row[:publisher].presence,
               status: :approved,
             )
             if script.save

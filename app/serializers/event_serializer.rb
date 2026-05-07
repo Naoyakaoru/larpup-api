@@ -41,8 +41,8 @@ class EventSerializer
       any_slots: s.any_slots,
       difficulty: s.difficulty,
       genres: s.genres,
-      duration: (v.duration_override || s.duration)&.to_f,
-      price: v.price,
+      duration: v.effective_duration,
+      price: v.effective_price,
       store: v.store ? { id: v.store.id, name: v.store.name } : nil,
       version_name: v.version_name
     }

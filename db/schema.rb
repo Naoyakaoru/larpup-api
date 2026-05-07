@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_06_221450) do
+ActiveRecord::Schema[7.2].define(version: 2026_05_07_070439) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -95,6 +95,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_06_221450) do
     t.decimal "duration_override"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "extras", default: {}, null: false
     t.index ["script_id"], name: "index_script_versions_on_script_id"
     t.index ["store_id"], name: "index_script_versions_on_store_id"
   end
@@ -111,6 +112,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_06_221450) do
     t.datetime "updated_at", null: false
     t.decimal "duration"
     t.string "status", default: "approved", null: false
+    t.string "publisher"
     t.index ["genres"], name: "index_scripts_on_genres", using: :gin
   end
 
