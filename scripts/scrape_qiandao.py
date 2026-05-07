@@ -4,8 +4,11 @@ Strategy:
   1. Load catalog page in Playwright to capture a real signed request
   2. Extract auth headers (x-request-sign, x-request-timestamp, etc.)
   3. Use those headers in Python requests for paginated fetches
+  4. Convert Simplified Chinese → Traditional Chinese via opencc
 
 Output: qiandao_scripts.csv
+Columns include `difficulty_norm` (easy/medium/hard) and `genres_norm`
+(comma-separated integers matching the platform's genre enum).
 """
 import asyncio
 import csv
@@ -14,8 +17,41 @@ import re
 import time
 from pathlib import Path
 
+import opencc
 import requests
 from playwright.async_api import async_playwright
+
+# Simplified → Traditional converter
+_cc = opencc.OpenCC("s2t")
+
+def s2t(text: str) -> str:
+    return _cc.convert(text) if text else text
+
+
+# Difficulty mapping (Traditional Chinese after conversion)
+DIFFICULTY_MAP = {
+    "入門": "easy", "新手": "easy", "輕度": "easy", "普通": "easy",
+    "中度": "medium", "進階": "medium",
+    "困難": "hard", "燒腦": "hard", "重度": "hard", "重恐": "hard",
+}
+
+def normalize_difficulty(raw: str) -> str:
+    # strip parenthetical suffixes like "進階/(劇本殺難度)"
+    key = re.sub(r"[/(（].*", "", raw).strip()
+    return DIFFICULTY_MAP.get(key, "medium")  # default medium if unknown
+
+
+# Genre mapping: Traditional Chinese label → platform integer
+GENRE_MAP = {
+    "推理": 0, "還原": 1, "恐怖": 2, "情感": 3,
+    "歡樂": 4, "機制": 5, "陣營": 6, "古風": 7, "現代": 8,
+}
+
+def normalize_genres(raw: str) -> str:
+    """Return comma-separated integers for known genres."""
+    parts = re.split(r"[、,，\s]+", raw.strip())
+    ids = [str(GENRE_MAP[p]) for p in parts if p in GENRE_MAP]
+    return ",".join(ids)
 
 CATALOG_URL = (
     "https://qiandao.com/island/catalog"
@@ -181,7 +217,10 @@ def main():
     fieldnames = [
         "id", "title", "rating", "wish_count",
         "total_slots", "male_slots", "female_slots", "any_slots",
-        "allow_cross_gender", "difficulty", "genres", "duration_hours",
+        "allow_cross_gender",
+        "difficulty", "difficulty_norm",
+        "genres", "genres_norm",
+        "duration_hours",
         "publisher", "cover_url", "key_property_content",
     ]
 
@@ -196,17 +235,21 @@ def main():
         allow_cross = "可反串" in (cross_raw[0] if cross_raw else "")
 
         diff_raw = extract_profile(profiles, PROP_DIFFICULTY)
-        difficulty = diff_raw[0] if diff_raw else ""
+        difficulty_raw = s2t(diff_raw[0]) if diff_raw else ""
 
         genres_raw = extract_profile(profiles, PROP_STYLE_NEW) or extract_profile(profiles, PROP_STYLE_OLD)
-        genres = "、".join(genres_raw)
+        genres_text = s2t("、".join(genres_raw))
 
         dur_raw = extract_profile(profiles, PROP_DURATION)
         duration = parse_duration(dur_raw[0]) if dur_raw else None
 
+        title = s2t(item["name"])
+        publisher = s2t(item.get("mainTagDisplayName", ""))
+        key_content = s2t(item.get("keyPropertyContent", ""))
+
         rows.append({
             "id": item["id"],
-            "title": item["name"],
+            "title": title,
             "rating": item.get("rate", {}).get("rating"),
             "wish_count": item.get("wishCount", ""),
             "total_slots": total_slots,
@@ -214,12 +257,14 @@ def main():
             "female_slots": female,
             "any_slots": any_,
             "allow_cross_gender": allow_cross,
-            "difficulty": difficulty,
-            "genres": genres,
+            "difficulty": difficulty_raw,
+            "difficulty_norm": normalize_difficulty(difficulty_raw),
+            "genres": genres_text,
+            "genres_norm": normalize_genres(genres_text),
             "duration_hours": duration,
-            "publisher": item.get("mainTagDisplayName", ""),
+            "publisher": publisher,
             "cover_url": item.get("cover", ""),
-            "key_property_content": item.get("keyPropertyContent", ""),
+            "key_property_content": key_content,
         })
 
     with open(out_path, "w", newline="", encoding="utf-8") as f:

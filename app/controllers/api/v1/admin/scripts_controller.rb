@@ -24,6 +24,33 @@ module Api
         rescue ActiveRecord::RecordNotFound
           render json: { error: "Script not found" }, status: :not_found
         end
+
+        def bulk_import
+          rows = params.require(:scripts)
+          created = 0
+          errors = []
+
+          rows.each_with_index do |row, i|
+            script = Script.new(
+              title: row[:title],
+              difficulty: row[:difficulty],
+              genres: Array(row[:genres]),
+              male_slots: row[:male_slots].to_i,
+              female_slots: row[:female_slots].to_i,
+              any_slots: row[:any_slots].to_i,
+              duration: row[:duration].presence,
+              description: row[:description].presence || "",
+              status: :approved,
+            )
+            if script.save
+              created += 1
+            else
+              errors << { index: i, title: row[:title], messages: script.errors.full_messages }
+            end
+          end
+
+          render json: { created: created, errors: errors }
+        end
       end
     end
   end

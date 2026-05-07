@@ -32,6 +32,9 @@ Rails.application.routes.draw do
       namespace :admin do
         resources :stores, only: [ :index, :create ]
         resources :scripts, only: [ :index ] do
+          collection do
+            post :bulk_import
+          end
           member do
             patch :approve
             patch :reject
