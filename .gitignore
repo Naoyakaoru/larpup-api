@@ -28,3 +28,8 @@
 
 # Claude
 .claude/auto-context.md
+qiandao_scripts.csv
+scripts/__pycache__/
+scripts/cover_preview/
+scripts/.DS_Store
+.DS_Store
