@@ -72,9 +72,8 @@ PROPERTY_IDS = ["1152095", "1152081", "1152112", "1152085", "53156", "55407"]
 PROP_PLAYER_COUNT = "1152081"
 PROP_CROSS_GENDER  = "1152112"
 PROP_DIFFICULTY    = "1152085"
-PROP_STYLE_OLD     = "53156"
 PROP_DURATION      = "1152095"
-PROP_STYLE_NEW     = "55407"
+PROP_DESCRIPTION   = "55407"   # "简介" — intro/description paragraph text
 
 KEEP_HEADERS = [
     "x-request-timestamp",
@@ -240,19 +239,32 @@ def main():
         diff_raw = extract_profile(profiles, PROP_DIFFICULTY)
         difficulty_raw = s2t(diff_raw[0]) if diff_raw else ""
 
-        genres_raw = extract_profile(profiles, PROP_STYLE_NEW) or extract_profile(profiles, PROP_STYLE_OLD)
-        genres_text = s2t("、".join(genres_raw))
-
         dur_raw = extract_profile(profiles, PROP_DURATION)
         duration = parse_duration(dur_raw[0]) if dur_raw else None
 
         title = s2t(item["name"])
-        publisher = s2t(item.get("mainTagDisplayName", ""))
         key_content = s2t(item.get("keyPropertyContent", ""))
-        description = s2t(
-            item.get("summary") or item.get("description") or
-            item.get("brief") or item.get("intro") or ""
-        )
+
+        # key_property_content: "劇本殺 / {publisher(s)} / {dist_type} / {tag1} {tag2}..."
+        kpc_parts = [p.strip() for p in key_content.split("/")]
+        publisher_kpc = kpc_parts[1].strip() if len(kpc_parts) > 1 else ""
+        raw_pub = s2t(item.get("mainTagDisplayName", "")) or publisher_kpc
+        # multiple publishers separated by spaces in Chinese text → use 、
+        publisher = "、".join(raw_pub.split()) if raw_pub else ""
+
+        # Genres come from kpc; profile 53156 has deprecated non-standard tags
+        # kpc: "劇本殺 / {pub} / {城限|獨家|盒裝} / {tag1} {tag2}..."
+        # or 3-part when dist_type absent: "劇本殺 / {pub} / {tag1} {tag2}..."
+        if len(kpc_parts) >= 4:
+            genres_text = re.sub(r"\s+", "、", kpc_parts[3].strip())
+        elif len(kpc_parts) == 3:
+            genres_text = re.sub(r"\s+", "、", kpc_parts[2].strip())
+        else:
+            genres_text = ""
+
+        # Description is in property 55407 ("简介") as a paragraph
+        desc_raw = extract_profile(profiles, PROP_DESCRIPTION)
+        description = s2t(desc_raw[0]) if desc_raw else ""
 
         rows.append({
             "id": item["id"],
