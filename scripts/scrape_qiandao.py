@@ -45,6 +45,7 @@ def normalize_difficulty(raw: str) -> str:
 GENRE_MAP = {
     "推理": 0, "還原": 1, "恐怖": 2, "情感": 3,
     "歡樂": 4, "機制": 5, "陣營": 6, "古風": 7, "現代": 8,
+    "日式": 9, "中式": 10, "民國": 11, "社會": 12, "刑偵": 13, "演繹": 14,
 }
 
 def normalize_genres(raw: str) -> str:

@@ -13,7 +13,13 @@ class Script < ApplicationRecord
     mechanism: 5,
     faction: 6,
     ancient: 7,
-    modern: 8
+    modern: 8,
+    japanese: 9,
+    chinese: 10,
+    republican: 11,
+    social: 12,
+    detective: 13,
+    performance: 14
   }.freeze
 
   enum :difficulty, { easy: 0, medium: 1, hard: 2 }
