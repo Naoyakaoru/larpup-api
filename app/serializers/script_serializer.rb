@@ -10,7 +10,6 @@ class ScriptSerializer
       title: @script.title,
       genres: @script.genre_labels,
       difficulty: @script.difficulty,
-      difficulty_label: @script.difficulty_label,
       male_slots: @script.male_slots,
       female_slots: @script.female_slots,
       any_slots: @script.any_slots,
