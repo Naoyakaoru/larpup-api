@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_07_075137) do
+ActiveRecord::Schema[7.2].define(version: 2026_05_09_000005) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -40,6 +40,18 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_07_075137) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "addresses", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "address"
+    t.string "map_url"
+    t.string "region", null: false
+    t.datetime "deleted_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["deleted_at"], name: "index_addresses_on_deleted_at"
+    t.index ["name"], name: "index_addresses_on_name", unique: true
   end
 
   create_table "audit_logs", force: :cascade do |t|
@@ -82,8 +94,18 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_07_075137) do
     t.integer "offline_female", default: 0, null: false
     t.datetime "deleted_at"
     t.bigint "script_version_id"
+    t.bigint "address_id"
+    t.index ["address_id"], name: "index_events_on_address_id"
     t.index ["host_id"], name: "index_events_on_host_id"
     t.index ["script_version_id"], name: "index_events_on_script_version_id"
+  end
+
+  create_table "script_version_addresses", force: :cascade do |t|
+    t.bigint "script_version_id", null: false
+    t.bigint "address_id", null: false
+    t.index ["address_id"], name: "index_script_version_addresses_on_address_id"
+    t.index ["script_version_id", "address_id"], name: "idx_on_script_version_id_address_id_f1f2a8baeb", unique: true
+    t.index ["script_version_id"], name: "index_script_version_addresses_on_script_version_id"
   end
 
   create_table "script_versions", force: :cascade do |t|
@@ -96,6 +118,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_07_075137) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.jsonb "extras", default: {}, null: false
+    t.datetime "deleted_at"
+    t.index ["deleted_at"], name: "index_script_versions_on_deleted_at"
     t.index ["script_id"], name: "index_script_versions_on_script_id"
     t.index ["store_id"], name: "index_script_versions_on_store_id"
   end
@@ -113,8 +137,19 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_07_075137) do
     t.decimal "duration"
     t.string "status", default: "approved", null: false
     t.string "publisher"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "deleted_at"
+    t.index ["deleted_at"], name: "index_scripts_on_deleted_at"
     t.index ["genres"], name: "index_scripts_on_genres", using: :gin
     t.index ["title"], name: "index_scripts_on_title", unique: true
+  end
+
+  create_table "store_addresses", force: :cascade do |t|
+    t.bigint "store_id", null: false
+    t.bigint "address_id", null: false
+    t.index ["address_id"], name: "index_store_addresses_on_address_id"
+    t.index ["store_id", "address_id"], name: "index_store_addresses_on_store_id_and_address_id", unique: true
+    t.index ["store_id"], name: "index_store_addresses_on_store_id"
   end
 
   create_table "stores", force: :cascade do |t|
@@ -145,9 +180,14 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_07_075137) do
   add_foreign_key "audit_logs", "users"
   add_foreign_key "event_members", "events"
   add_foreign_key "event_members", "users"
+  add_foreign_key "events", "addresses"
   add_foreign_key "events", "script_versions"
   add_foreign_key "events", "users", column: "host_id"
+  add_foreign_key "script_version_addresses", "addresses"
+  add_foreign_key "script_version_addresses", "script_versions"
   add_foreign_key "script_versions", "scripts"
   add_foreign_key "script_versions", "stores"
+  add_foreign_key "store_addresses", "addresses"
+  add_foreign_key "store_addresses", "stores"
   add_foreign_key "stores", "users", column: "owner_id"
 end

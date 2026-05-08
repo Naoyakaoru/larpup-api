@@ -7,7 +7,7 @@ module Api
       before_action :require_host!, only: [ :update, :destroy, :restore, :cancel ]
 
       def index
-        events = Event.includes(script_version: :script).includes(:host)
+        events = Event.includes(script_version: { store: :addresses }).includes(:host, :address)
         events = events.where(status: params[:status]) if params[:status].present?
         if params[:script_id].present?
           version_ids = ScriptVersion.where(script_id: params[:script_id]).pluck(:id)
@@ -52,13 +52,19 @@ module Api
         permitted = has_members? ? location_only_params : event_params
 
         old_location = @event.location
+        old_address_id = @event.address_id
+        old_address_name = @event.address&.name
         if @event.update(permitted)
-          if has_members? && @event.location != old_location
+          if has_members? && (@event.location != old_location || @event.address_id != old_address_id)
+            new_address_name = @event.address_id ? Address.find_by(id: @event.address_id)&.name : nil
             AuditLog.create!(
               auditable: @event,
               user: current_user,
               action: "location_changed",
-              metadata: { from: old_location, to: @event.location }
+              metadata: {
+                from: old_address_name || old_location,
+                to: new_address_name || @event.location
+              }
             )
           end
           @event.sync_status
@@ -149,7 +155,7 @@ module Api
       private
 
       def set_event
-        @event = Event.unscoped.includes(script_version: :script).merge(Event.unscoped.includes(:host)).find(params[:id])
+        @event = Event.unscoped.includes(:address, :host, script_version: :script).find(params[:id])
       rescue ActiveRecord::RecordNotFound
         render json: { error: "Event not found" }, status: :not_found
       end
@@ -189,15 +195,15 @@ module Api
       end
 
       def has_members?
-        @event.event_members.where.not(user_id: @event.host_id).exists?
+        @_has_members ||= @event.event_members.where.not(user_id: @event.host_id).exists?
       end
 
       def event_params
-        params.permit(:script_version_id, :scheduled_at, :location, :status, :allow_cross_gender, :offline_male, :offline_female)
+        params.permit(:script_version_id, :scheduled_at, :location, :address_id, :status, :allow_cross_gender, :offline_male, :offline_female)
       end
 
       def location_only_params
-        params.permit(:location, :offline_male, :offline_female, :allow_cross_gender)
+        params.permit(:location, :address_id, :offline_male, :offline_female, :allow_cross_gender)
       end
     end
   end

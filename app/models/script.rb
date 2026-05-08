@@ -27,6 +27,8 @@ class Script < ApplicationRecord
   enum :difficulty, { easy: 0, medium: 1, hard: 2 }
   enum :status, { pending: "pending", approved: "approved", rejected: "rejected" }, default: :approved
 
+  scope :active, -> { where(deleted_at: nil) }
+
   validates :title, presence: true, uniqueness: true
   validates :difficulty, presence: true
   validates :male_slots, :female_slots, :any_slots, numericality: { greater_than_or_equal_to: 0 }

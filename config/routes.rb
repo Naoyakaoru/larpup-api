@@ -25,13 +25,22 @@ Rails.application.routes.draw do
         resources :versions, only: [ :index ], controller: "script_versions"
       end
 
+      resources :addresses, only: [ :index, :create, :update ]
+
       resources :stores, only: [ :index ] do
-        resources :script_versions, only: [ :index, :create, :update ], controller: "store_script_versions"
+        resources :script_versions, only: [ :index, :create, :update, :destroy ], controller: "store_script_versions" do
+          collection do
+            post :bulk_import
+          end
+          resources :addresses, only: [ :index, :create, :destroy ], controller: "script_version_addresses"
+        end
+        resources :addresses, only: [ :index, :create, :destroy ], controller: "store_addresses"
       end
 
       namespace :admin do
+        resources :addresses, only: [ :index, :destroy ]
         resources :stores, only: [ :index, :create ]
-        resources :scripts, only: [ :index ] do
+        resources :scripts, only: [ :index, :destroy ] do
           collection do
             post :bulk_import
           end

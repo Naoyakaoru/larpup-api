@@ -17,7 +17,7 @@ class ScriptSerializer
       description: @script.description,
       publisher: @script.publisher,
       status: @script.status,
-      duration: @script.duration&.to_f,
+      duration: @script.duration,
       cover_image_url: cover_image_url
     }
   end

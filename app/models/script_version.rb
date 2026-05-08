@@ -1,8 +1,12 @@
 class ScriptVersion < ApplicationRecord
+  default_scope { where(deleted_at: nil) }
+
   belongs_to :script
   belongs_to :store, optional: true
 
   has_many :events, dependent: :restrict_with_error
+  has_many :script_version_addresses, dependent: :destroy
+  has_many :addresses, through: :script_version_addresses
 
   store_accessor :extras, :npc_count, :gm_count, :has_food, :has_costume_change
 

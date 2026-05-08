@@ -14,6 +14,7 @@ class EventSerializer
       offline_female: @event.offline_female,
       scheduled_at: @event.scheduled_at,
       location: @event.location,
+      address: @event.address ? AddressSerializer.new(@event.address).as_json : nil,
       status: @event.status,
       script_version_id: @event.script_version_id,
       confirmed_count: @event.confirmed_count,
