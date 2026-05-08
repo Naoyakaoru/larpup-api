@@ -1,6 +1,7 @@
 class Event < ApplicationRecord
   belongs_to :script_version
   belongs_to :host, class_name: "User"
+  belongs_to :address, optional: true
 
   delegate :script, to: :script_version
 
@@ -42,7 +43,7 @@ class Event < ApplicationRecord
   default_scope { where(deleted_at: nil) }
 
   validates :scheduled_at, presence: true
-  validates :location, presence: true
+  validates :location, presence: true, unless: :address_id?
 
   def total_slots
     script_version.script.total_slots

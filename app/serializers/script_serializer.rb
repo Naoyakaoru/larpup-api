@@ -8,16 +8,16 @@ class ScriptSerializer
     {
       id: @script.id,
       title: @script.title,
-      genres: @script.genre_labels,
+      genres: @script.genres,
       difficulty: @script.difficulty,
-      difficulty_label: @script.difficulty_label,
       male_slots: @script.male_slots,
       female_slots: @script.female_slots,
       any_slots: @script.any_slots,
       total_slots: @script.total_slots,
       description: @script.description,
+      publisher: @script.publisher,
       status: @script.status,
-      duration: @script.duration&.to_f,
+      duration: @script.duration,
       cover_image_url: cover_image_url
     }
   end

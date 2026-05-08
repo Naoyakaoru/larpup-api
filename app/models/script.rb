@@ -13,31 +13,23 @@ class Script < ApplicationRecord
     mechanism: 5,
     faction: 6,
     ancient: 7,
-    modern: 8
+    modern: 8,
+    japanese: 9,
+    chinese: 10,
+    republican: 11,
+    social: 12,
+    detective: 13,
+    performance: 14,
+    city_exclusive: 15,
+    exclusive: 16
   }.freeze
-
-  GENRE_LABELS = {
-    mystery: "推理",
-    restoration: "還原",
-    horror: "恐怖",
-    romance: "情感",
-    comedy: "歡樂",
-    mechanism: "機制",
-    faction: "陣營",
-    ancient: "古風",
-    modern: "現代"
-  }.freeze
-
-  DIFFICULTY_LABELS = { easy: "入門", medium: "進階", hard: "燒腦" }.freeze
 
   enum :difficulty, { easy: 0, medium: 1, hard: 2 }
   enum :status, { pending: "pending", approved: "approved", rejected: "rejected" }, default: :approved
 
-  def difficulty_label
-    DIFFICULTY_LABELS[difficulty.to_sym]
-  end
+  scope :active, -> { where(deleted_at: nil) }
 
-  validates :title, presence: true
+  validates :title, presence: true, uniqueness: true
   validates :difficulty, presence: true
   validates :male_slots, :female_slots, :any_slots, numericality: { greater_than_or_equal_to: 0 }
   validate :genres_must_be_valid
@@ -45,10 +37,6 @@ class Script < ApplicationRecord
 
   def total_slots
     male_slots.to_i + female_slots.to_i + any_slots.to_i
-  end
-
-  def genre_labels
-    (genres || []).map { |g| GENRE_LABELS[GENRES.key(g)] }
   end
 
   private

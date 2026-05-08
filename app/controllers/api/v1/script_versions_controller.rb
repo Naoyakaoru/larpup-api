@@ -15,7 +15,7 @@ module Api
             id: v.id,
             version_name: v.version_name,
             price: v.price,
-            duration: (v.duration_override || script.duration)&.to_f,
+            duration: v.effective_duration,
             store: { id: v.store.id, name: v.store.name }
           }
         }

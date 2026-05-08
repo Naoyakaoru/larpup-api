@@ -2,6 +2,8 @@ class Store < ApplicationRecord
   belongs_to :owner, class_name: "User"
   has_many :script_versions, dependent: :destroy
   has_many :scripts, through: :script_versions
+  has_many :store_addresses, dependent: :destroy
+  has_many :addresses, through: :store_addresses
 
   enum :status, { active: "active", inactive: "inactive" }, default: :active
 

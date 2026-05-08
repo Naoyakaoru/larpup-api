@@ -8,6 +8,8 @@ module Api
         scripts = Script.where(status: :approved)
         scripts = scripts.where(difficulty: params[:difficulty]) if params[:difficulty].present?
         scripts = scripts.where("genres @> ARRAY[?]::integer[]", params[:genre].to_i) if params[:genre].present?
+        scripts = scripts.where("title LIKE ?", "%#{params[:q]}%") if params[:q].present?
+        scripts = scripts.limit(20) if params[:q].present?
         render json: scripts.map { |s| ScriptSerializer.new(s, url_helper: method(:url_for)).as_json }
       end
 

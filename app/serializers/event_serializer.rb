@@ -14,6 +14,7 @@ class EventSerializer
       offline_female: @event.offline_female,
       scheduled_at: @event.scheduled_at,
       location: @event.location,
+      address: @event.address ? AddressSerializer.new(@event.address).as_json : nil,
       status: @event.status,
       script_version_id: @event.script_version_id,
       confirmed_count: @event.confirmed_count,
@@ -40,10 +41,9 @@ class EventSerializer
       female_slots: s.female_slots,
       any_slots: s.any_slots,
       difficulty: s.difficulty,
-      difficulty_label: s.difficulty_label,
-      genres: s.genre_labels,
-      duration: (v.duration_override || s.duration)&.to_f,
-      price: v.price,
+      genres: s.genres,
+      duration: v.effective_duration,
+      price: v.effective_price,
       store: v.store ? { id: v.store.id, name: v.store.name } : nil,
       version_name: v.version_name
     }
