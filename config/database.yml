@@ -1,0 +1,22 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  username: hsuanchen
+  password:
+  host: localhost
+
+development:
+  <<: *default
+  database: larpup_development
+
+test:
+  <<: *default
+  database: larpup_test
+
+production:
+  <<: *default
+  database: larpup_production
+  username: <%= ENV["DATABASE_USERNAME"] %>
+  password: <%= ENV["DATABASE_PASSWORD"] %>
+  host: <%= ENV["DATABASE_HOST"] %>

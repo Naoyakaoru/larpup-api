@@ -11,6 +11,12 @@ Rails.application.routes.draw do
         end
       end
 
+      scope "/auth/sso", controller: "sso", as: "sso_auth" do
+        post :google,   action: :google,   as: :google
+        post :line,     action: :line,     as: :line
+        post :register, action: :register, as: :register
+      end
+
       resources :users, only: [ :show ], param: :handle do
         collection do
           get   :me
