@@ -45,7 +45,8 @@ class EventSerializer
       duration: v.effective_duration,
       price: v.effective_price,
       store: v.store ? { id: v.store.id, name: v.store.name } : nil,
-      version_name: v.version_name
+      version_name: v.version_name,
+      cover_image_url: s.cover_image.attached? ? Rails.application.routes.url_helpers.rails_blob_url(s.cover_image) : nil
     }
   end
 
