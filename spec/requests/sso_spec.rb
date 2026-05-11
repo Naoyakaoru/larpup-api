@@ -7,7 +7,8 @@ RSpec.describe "Sso", type: :request do
 
   # Stub Google tokeninfo endpoint
   def stub_google_token(sub: "google-sub-123", email: "g@example.com", name: "Google User", valid: true)
-    client_id = ENV.fetch("GOOGLE_CLIENT_ID", "test-client-id")
+    client_id = "test-client-id"
+    allow(ENV).to receive(:fetch).with("GOOGLE_CLIENT_ID", nil).and_return(client_id)
     body = valid ? { "sub" => sub, "email" => email, "name" => name, "aud" => client_id }.to_json
                  : { "error" => "invalid_token" }.to_json
     stub_request(:get, /oauth2\.googleapis\.com\/tokeninfo/)
