@@ -19,11 +19,11 @@ module Api
           events = events.where("scheduled_at >= ?", Time.current)
         end
         events = events.order(scheduled_at: :asc)
-        render json: events.map { |e| EventSerializer.new(e).as_json }
+        render json: events.map { |e| EventSerializer.new(e, url_helper: method(:url_for)).as_json }
       end
 
       def show
-        render json: EventSerializer.new(@event, detail: true).as_json
+        render json: EventSerializer.new(@event, detail: true, url_helper: method(:url_for)).as_json
       end
 
       def create
@@ -42,7 +42,7 @@ module Api
             )
           end
           event.sync_status
-          render json: EventSerializer.new(event).as_json, status: :created
+          render json: EventSerializer.new(event, url_helper: method(:url_for)).as_json, status: :created
         else
           render json: { errors: event.errors.full_messages }, status: :unprocessable_entity
         end
@@ -68,7 +68,7 @@ module Api
             )
           end
           @event.sync_status
-          render json: EventSerializer.new(@event, detail: true).as_json
+          render json: EventSerializer.new(@event, detail: true, url_helper: method(:url_for)).as_json
         else
           render json: { errors: @event.errors.full_messages }, status: :unprocessable_entity
         end
@@ -85,7 +85,7 @@ module Api
 
       def restore
         @event.update_column(:deleted_at, nil)
-        render json: EventSerializer.new(@event, detail: true).as_json
+        render json: EventSerializer.new(@event, detail: true, url_helper: method(:url_for)).as_json
       end
 
       def cancel
@@ -94,7 +94,7 @@ module Api
         end
 
         @event.cancel!
-        render json: EventSerializer.new(@event, detail: true).as_json
+        render json: EventSerializer.new(@event, detail: true, url_helper: method(:url_for)).as_json
       end
 
       def join
