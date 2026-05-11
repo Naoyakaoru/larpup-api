@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_09_000005) do
+ActiveRecord::Schema[7.2].define(version: 2026_05_11_153603) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -93,7 +93,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_09_000005) do
     t.integer "offline_male", default: 0, null: false
     t.integer "offline_female", default: 0, null: false
     t.datetime "deleted_at"
-    t.bigint "script_version_id"
+    t.bigint "script_version_id", null: false
+    t.integer "price_per_person"
     t.bigint "address_id"
     t.index ["address_id"], name: "index_events_on_address_id"
     t.index ["host_id"], name: "index_events_on_host_id"
@@ -113,8 +114,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_09_000005) do
     t.bigint "store_id"
     t.string "version_name"
     t.integer "price"
-    t.boolean "available"
-    t.decimal "duration_override"
+    t.boolean "available", default: true, null: false
+    t.decimal "duration_override", precision: 3, scale: 1
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.jsonb "extras", default: {}, null: false
@@ -134,7 +135,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_09_000005) do
     t.integer "any_slots"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.decimal "duration"
+    t.decimal "duration", precision: 3, scale: 1
     t.string "status", default: "approved", null: false
     t.string "publisher"
     t.jsonb "metadata", default: {}, null: false
@@ -153,8 +154,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_09_000005) do
   end
 
   create_table "stores", force: :cascade do |t|
-    t.string "name"
-    t.string "status"
+    t.string "name", null: false
+    t.string "status", default: "active", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "owner_id", null: false
@@ -171,8 +172,14 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_09_000005) do
     t.string "gender", default: "other", null: false
     t.boolean "show_hosted_events", default: false, null: false
     t.string "handle", null: false
+    t.string "google_uid"
+    t.string "line_uid"
+    t.string "canonical_email", null: false
+    t.index ["canonical_email"], name: "index_users_on_canonical_email", unique: true
     t.index ["email"], name: "index_users_on_email", unique: true
+    t.index ["google_uid"], name: "index_users_on_google_uid", unique: true
     t.index ["handle"], name: "index_users_on_handle", unique: true
+    t.index ["line_uid"], name: "index_users_on_line_uid", unique: true
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"

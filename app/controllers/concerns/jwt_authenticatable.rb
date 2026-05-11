@@ -2,7 +2,8 @@ module JwtAuthenticatable
   SECRET = ENV.fetch("SECRET_KEY_BASE")
 
   def self.encode(payload)
-    JWT.encode(payload.merge(exp: 30.days.from_now.to_i), SECRET, "HS256")
+    default_exp = { exp: 30.days.from_now.to_i }
+    JWT.encode(default_exp.merge(payload), SECRET, "HS256")
   end
 
   def self.decode(token)
