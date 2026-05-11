@@ -26,10 +26,17 @@
 # Ignore bootsnap cache.
 /tmp/cache/bootsnap*
 
+# Python / venv
+.venv/
+
 # Claude
 .claude/auto-context.md
-qiandao_scripts.csv
+
+# Scripts output
 scripts/__pycache__/
 scripts/cover_preview/
 scripts/.DS_Store
+scripts/*.csv
+qiandao_scripts.csv
+
 .DS_Store
