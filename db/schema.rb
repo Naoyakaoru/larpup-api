@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_09_000005) do
+ActiveRecord::Schema[7.2].define(version: 2026_05_11_153603) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -174,6 +174,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_09_000005) do
     t.string "handle", null: false
     t.string "google_uid"
     t.string "line_uid"
+    t.string "canonical_email", null: false
+    t.index ["canonical_email"], name: "index_users_on_canonical_email", unique: true
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["google_uid"], name: "index_users_on_google_uid", unique: true
     t.index ["handle"], name: "index_users_on_handle", unique: true

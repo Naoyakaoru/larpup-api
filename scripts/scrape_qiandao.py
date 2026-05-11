@@ -97,7 +97,7 @@ async def capture_signed_headers() -> dict:
     captured = {}
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(headless=False)
         context = await browser.new_context(
             user_agent=(
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -108,6 +108,8 @@ async def capture_signed_headers() -> dict:
         page = await context.new_page()
 
         async def on_request(request):
+            if request.resource_type in ["xhr", "fetch"]:
+                print(f"[DEBUG] Fetching: {request.url}")
             if "ssr/spu/feed" in request.url and not captured:
                 for k, v in request.headers.items():
                     if k.lower() in KEEP_HEADERS:
@@ -121,8 +123,8 @@ async def capture_signed_headers() -> dict:
         asyncio.ensure_future(
             page.goto(CATALOG_URL, wait_until="commit", timeout=60000)
         )
-        # Wait up to 30s for the feed request to appear
-        for _ in range(30):
+        # Wait up to 60s for the feed request to appear
+        for _ in range(60):
             if captured:
                 break
             await asyncio.sleep(1)
@@ -199,7 +201,7 @@ def main():
     print(f"Total: {total}  |  fetched: {len(all_items)}")
 
     offset = BATCH
-    cap = min(total, 1000)  # hot 1000
+    cap = min(total, 500)  # hot 500
     while offset < cap:
         data = fetch_page(headers, offset)
         if data.get("code") != 0 or not data.get("data"):
@@ -223,7 +225,7 @@ def main():
         "difficulty", "difficulty_norm",
         "genres", "genres_norm",
         "duration_hours",
-        "publisher", "cover_url", "key_property_content",
+        "publisher", "cover_url", "cover_image_id", "key_property_content",
         "description",
     ]
 
@@ -267,6 +269,13 @@ def main():
         desc_raw = extract_profile(profiles, PROP_DESCRIPTION)
         description = s2t(desc_raw[0]) if desc_raw else ""
 
+        cover_url = item.get("cover", "")
+        cover_image_id = ""
+        if cover_url:
+            m = re.search(r"\.image/([^?]+)", cover_url)
+            if m:
+                cover_image_id = m.group(1)
+
         rows.append({
             "id": item["id"],
             "title": title,
@@ -283,7 +292,8 @@ def main():
             "genres_norm": normalize_genres(genres_text),
             "duration_hours": duration,
             "publisher": publisher,
-            "cover_url": item.get("cover", ""),
+            "cover_url": cover_url,
+            "cover_image_id": cover_image_id,
             "key_property_content": key_content,
             "description": description.replace("\n", "\\n"),
         })

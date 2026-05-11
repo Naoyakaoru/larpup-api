@@ -42,7 +42,9 @@ module Api
           gender: user.gender,
           avatar_url: user.avatar.attached? ? url_for(user.avatar) : nil,
           is_admin: user.is_admin,
-          show_hosted_events: user.show_hosted_events
+          show_hosted_events: user.show_hosted_events,
+          has_google: user.google_uid.present?,
+          has_line: user.line_uid.present?
         }
       end
     end

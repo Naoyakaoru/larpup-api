@@ -29,8 +29,10 @@ RSpec.describe "Sso", type: :request do
     end
   end
 
+  # Build a fake LINE id_token JWT payload; omit email key when nil to simulate LINE not sharing email
   def build_line_id_token(email)
-    payload = Base64.urlsafe_encode64({ "email" => email }.to_json, padding: false)
+    claims = email.nil? ? {} : { "email" => email }
+    payload = Base64.urlsafe_encode64(claims.to_json, padding: false)
     "header.#{payload}.sig"
   end
 
@@ -54,17 +56,18 @@ RSpec.describe "Sso", type: :request do
       end
     end
 
-    context "with a valid id_token matching by email (binds google_uid)" do
+    context "with a valid id_token matching by email but without google_uid (prevents takeover)" do
       let!(:user) { create(:user, email: "g@example.com", google_uid: nil) }
 
-      it "returns 200 and updates google_uid" do
+      it "returns 409 Conflict and does not update google_uid" do
         stub_google_token(email: "g@example.com")
         post "/api/v1/auth/sso/google",
           params: { id_token: "valid-token" }.to_json,
           headers: { "Content-Type" => "application/json" }
 
-        expect(response).to have_http_status(:ok)
-        expect(user.reload.google_uid).to eq("google-sub-123")
+        expect(response).to have_http_status(:conflict)
+        expect(json["error"]).to include("此 Email 已被註冊")
+        expect(user.reload.google_uid).to be_nil
       end
     end
 
@@ -90,6 +93,35 @@ RSpec.describe "Sso", type: :request do
           headers: { "Content-Type" => "application/json" }
 
         expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context "when authenticated (binding mode)" do
+      let!(:user) { create(:user, google_uid: nil) }
+      let!(:token) { JwtAuthenticatable.encode(type: "normal", user_id: user.id) }
+
+      it "binds the Google account if not already bound" do
+        stub_google_token(sub: "new-google-sub", email: "other@example.com")
+        post "/api/v1/auth/sso/google",
+          params: { id_token: "valid-token" }.to_json,
+          headers: { "Content-Type" => "application/json", "Authorization" => "Bearer #{token}" }
+
+        expect(response).to have_http_status(:ok)
+        expect(user.reload.google_uid).to eq("new-google-sub")
+        expect(json["token"]).to be_present
+        expect(json["user"]).to be_present
+      end
+
+      it "returns 409 if the Google account is already used by someone else" do
+        create(:user, google_uid: "new-google-sub")
+        stub_google_token(sub: "new-google-sub", email: "other@example.com")
+        post "/api/v1/auth/sso/google",
+          params: { id_token: "valid-token" }.to_json,
+          headers: { "Content-Type" => "application/json", "Authorization" => "Bearer #{token}" }
+
+        expect(response).to have_http_status(:conflict)
+        expect(user.reload.google_uid).to be_nil
+        expect(json["error"]).to eq("此社群帳號已經被其他會員綁定過了")
       end
     end
   end
@@ -132,6 +164,47 @@ RSpec.describe "Sso", type: :request do
           headers: { "Content-Type" => "application/json" }
 
         expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context "when LINE does not return an email" do
+      it "returns 422 with a descriptive error" do
+        stub_line(email: nil)
+        post "/api/v1/auth/sso/line",
+          params: { code: "valid-code", redirect_uri: "http://localhost:5173/auth/line/callback" }.to_json,
+          headers: { "Content-Type" => "application/json" }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(json["error"]).to include("LINE 設定")
+      end
+    end
+
+    context "when authenticated (binding mode)" do
+      let!(:user) { create(:user, line_uid: nil) }
+      let!(:token) { JwtAuthenticatable.encode(type: "normal", user_id: user.id) }
+
+      it "binds the LINE account if not already bound" do
+        stub_line(uid: "new-line-sub")
+        post "/api/v1/auth/sso/line",
+          params: { code: "valid-code", redirect_uri: "http://localhost:5173/auth/line/callback" }.to_json,
+          headers: { "Content-Type" => "application/json", "Authorization" => "Bearer #{token}" }
+
+        expect(response).to have_http_status(:ok)
+        expect(user.reload.line_uid).to eq("new-line-sub")
+        expect(json["token"]).to be_present
+        expect(json["user"]).to be_present
+      end
+
+      it "returns 409 if the LINE account is already used by someone else" do
+        create(:user, line_uid: "new-line-sub")
+        stub_line(uid: "new-line-sub")
+        post "/api/v1/auth/sso/line",
+          params: { code: "valid-code", redirect_uri: "http://localhost:5173/auth/line/callback" }.to_json,
+          headers: { "Content-Type" => "application/json", "Authorization" => "Bearer #{token}" }
+
+        expect(response).to have_http_status(:conflict)
+        expect(user.reload.line_uid).to be_nil
+        expect(json["error"]).to eq("此社群帳號已經被其他會員綁定過了")
       end
     end
   end

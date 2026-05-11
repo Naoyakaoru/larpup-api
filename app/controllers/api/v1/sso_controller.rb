@@ -5,6 +5,19 @@ module Api
   module V1
     class SsoController < ApplicationController
       skip_before_action :authenticate!
+      before_action :try_authenticate
+
+      private
+
+      def try_authenticate
+        token = request.headers["Authorization"]&.split(" ")&.last
+        return unless token
+
+        payload = JwtAuthenticatable.decode(token)
+        @current_user = User.find_by(id: payload&.dig("user_id"))
+      end
+
+      public
 
       # POST /api/v1/auth/sso/google
       # Body: { id_token: "..." }
@@ -32,6 +45,13 @@ module Api
 
         profile = exchange_line_code(code, redirect_uri)
         return render json: { error: "LINE login failed" }, status: :unauthorized if profile.nil?
+
+        # Reject accounts where LINE did not provide an email
+        if profile[:email].blank?
+          return render json: {
+            error: "請在 LINE 設定中允許分享 Email，或使用 Google 登入"
+          }, status: :unprocessable_entity
+        end
 
         handle_sso_login(
           uid_field: :line_uid,
@@ -123,9 +143,9 @@ module Api
         display_name = profile_data["displayName"]
         return nil if uid.blank?
 
-        # Step 3: try to get email from id_token claims (requires email scope approval)
-        email = extract_line_email(token_data["id_token"]) ||
-                "line_#{uid}@line.placeholder"
+        # Step 3: get email from id_token claims (requires email scope approval from LINE)
+        # Returns nil if LINE did not provide email — caller will reject the login
+        email = extract_line_email(token_data["id_token"])
 
         { uid: uid, nickname: display_name, email: email }
       rescue StandardError
@@ -149,13 +169,26 @@ module Api
 
       # Shared SSO login logic
       def handle_sso_login(uid_field:, uid:, email:, nickname:)
+        if @current_user
+          # Binding mode
+          if User.exists?(uid_field => uid) && @current_user[uid_field] != uid
+            return render json: { error: "此社群帳號已經被其他會員綁定過了" }, status: :conflict
+          end
+          
+          @current_user.update_column(uid_field, uid)
+          token = JwtAuthenticatable.encode(user_id: @current_user.id)
+          return render json: { token:, user: user_json(@current_user) }, status: :ok
+        end
+
         # 1. Find by uid
         user = User.find_by(uid_field => uid)
 
-        # 2. Find by email and bind uid
-        if user.nil? && email.present? && !email.end_with?("@line.placeholder")
-          user = User.find_by(email: email.downcase)
-          user&.update_column(uid_field, uid)
+        # 2. Prevent unverified auto-binding (Account Takeover Risk)
+        if user.nil? && email.present?
+          canonical = User.canonicalize_email(email)
+          if User.exists?(canonical_email: canonical)
+            return render json: { error: "此 Email 已被註冊，請使用原本的方式登入（或至會員中心綁定帳號）" }, status: :conflict
+          end
         end
 
         if user
@@ -185,7 +218,9 @@ module Api
           gender:             user.gender,
           avatar_url:         user.avatar.attached? ? url_for(user.avatar) : nil,
           is_admin:           user.is_admin,
-          show_hosted_events: user.show_hosted_events
+          show_hosted_events: user.show_hosted_events,
+          has_google:         user.google_uid.present?,
+          has_line:           user.line_uid.present?
         }
       end
     end
