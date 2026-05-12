@@ -8,7 +8,7 @@ class Event < ApplicationRecord
   has_many :event_members, dependent: :destroy
   has_many :members, through: :event_members, source: :user
   include Auditable
-  audit_fields :status, :location, :address_id, :scheduled_at
+  audit_fields :status, :location, :address_id, :scheduled_at, :offline_male, :offline_female
 
   include AASM
 
