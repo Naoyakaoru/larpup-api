@@ -1,4 +1,6 @@
 class Address < ApplicationRecord
+  include Auditable
+
   enum :region, {
     taipei_city: "台北市",
     new_taipei:  "新北市",
@@ -6,7 +8,6 @@ class Address < ApplicationRecord
     kaohsiung:   "高雄市"
   }
 
-  has_many :audit_logs, as: :auditable, dependent: :destroy
   has_many :store_addresses, dependent: :destroy
   has_many :stores, through: :store_addresses
   has_many :script_version_addresses, dependent: :destroy

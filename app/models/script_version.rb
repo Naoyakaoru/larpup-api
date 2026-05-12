@@ -1,4 +1,6 @@
 class ScriptVersion < ApplicationRecord
+  include Auditable
+
   default_scope { where(deleted_at: nil) }
 
   belongs_to :script

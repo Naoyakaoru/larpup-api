@@ -27,8 +27,6 @@ module Api
           )
 
           version.save!
-          AuditLog.create!(auditable: version, user: current_user, action: "created",
-                           metadata: { price: version.price, duration_override: version.duration_override })
           render json: version_json(version.reload), status: :created
         end
       rescue ActiveRecord::RecordInvalid => e
@@ -93,13 +91,7 @@ module Api
 
       def update
         version = @store.script_versions.find(params[:id])
-        before = version.slice(:price, :available, :duration_override, :version_name)
-
         if version.update(version_params)
-          after = version.slice(:price, :available, :duration_override, :version_name)
-          changes = after.select { |k, v| before[k] != v }.to_h { |k, v| [ k, [ before[k], v ] ] }
-          AuditLog.create!(auditable: version, user: current_user, action: "updated",
-                           metadata: { changes: changes }) if changes.any?
           render json: version_json(version)
         else
           render json: { errors: version.errors.full_messages }, status: :unprocessable_entity
