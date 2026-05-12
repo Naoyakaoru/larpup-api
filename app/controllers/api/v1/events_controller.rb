@@ -3,7 +3,8 @@ module Api
     class EventsController < ApplicationController
       skip_before_action :authenticate!, only: [ :index, :show ]
 
-      before_action :set_event, only: [ :show, :update, :destroy, :restore, :cancel, :join, :leave ]
+      before_action :set_event,          only: [ :show ]
+      before_action :set_event_unscoped, only: [ :update, :destroy, :restore, :cancel, :join, :leave ]
       before_action :require_host!, only: [ :update, :destroy, :restore, :cancel ]
 
       def index
@@ -155,6 +156,12 @@ module Api
       private
 
       def set_event
+        @event = Event.includes(:address, :host, script_version: :script).find(params[:id])
+      rescue ActiveRecord::RecordNotFound
+        render json: { error: "Event not found" }, status: :not_found
+      end
+
+      def set_event_unscoped
         @event = Event.unscoped.includes(:address, :host, script_version: :script).find(params[:id])
       rescue ActiveRecord::RecordNotFound
         render json: { error: "Event not found" }, status: :not_found

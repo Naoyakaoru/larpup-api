@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_11_153603) do
+ActiveRecord::Schema[7.2].define(version: 2026_05_12_055647) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -169,7 +169,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_11_153603) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.boolean "is_admin", default: false, null: false
-    t.string "gender", default: "other", null: false
+    t.string "gender", null: false
     t.boolean "show_hosted_events", default: false, null: false
     t.string "handle", null: false
     t.string "google_uid"

@@ -1,6 +1,7 @@
 module Api
   module V1
     class StoreScriptVersionsController < ApplicationController
+      include StoreAccessible
       before_action :set_store
       before_action :require_store_access!
 
@@ -12,7 +13,6 @@ module Api
       def create
         ActiveRecord::Base.transaction do
           script = resolve_script!
-          ensure_base_version!(script)
 
           version = @store.script_versions.build(
             script: script,
@@ -82,8 +82,10 @@ module Api
 
       def destroy
         version = @store.script_versions.find(params[:id])
-        version.update_column(:deleted_at, Time.current)
-        AuditLog.create!(auditable: version, user: current_user, action: "deleted", metadata: {})
+        ActiveRecord::Base.transaction do
+          version.update_column(:deleted_at, Time.current)
+          AuditLog.create!(auditable: version, user: current_user, action: "deleted", metadata: {})
+        end
         head :no_content
       rescue ActiveRecord::RecordNotFound
         render json: { error: "Not found" }, status: :not_found
@@ -114,12 +116,6 @@ module Api
         render json: { error: "Not found" }, status: :not_found
       end
 
-      def require_store_access!
-        unless @store.owner_id == current_user.id || current_user.is_admin?
-          render json: { error: "Forbidden" }, status: :forbidden
-        end
-      end
-
       def resolve_script!
         if params[:script_id].present?
           Script.find(params[:script_id])
@@ -135,11 +131,6 @@ module Api
             status: :pending
           )
         end
-      end
-
-      def ensure_base_version!(script)
-        return if script.script_versions.where(store_id: nil).exists?
-        script.script_versions.create!(store_id: nil, available: true)
       end
 
       def version_params

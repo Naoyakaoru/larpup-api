@@ -102,14 +102,13 @@ module Api
         store       = version.store
         store_ids   = store ? store.addresses.pluck(:id) - version_ids : []
 
-        scope.order(
-          Arel.sql(
-            "CASE " \
-            "WHEN id = ANY(ARRAY[#{version_ids.any? ? version_ids.map(&:to_i).join(",") : "NULL::bigint"}]::bigint[]) THEN 0 " \
-            "WHEN id = ANY(ARRAY[#{store_ids.any? ? store_ids.map(&:to_i).join(",") : "NULL::bigint"}]::bigint[]) THEN 1 " \
-            "ELSE 2 END, name"
-          )
-        )
+        id_col = Address.arel_table[:id]
+        priority = Arel::Nodes::Case.new
+                     .when(id_col.in(version_ids.presence || [0])).then(0)
+                     .when(id_col.in(store_ids.presence || [0])).then(1)
+                     .else(2)
+
+        scope.order(priority, :name)
       end
     end
   end
