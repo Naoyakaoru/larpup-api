@@ -27,6 +27,8 @@ module Auditable
     relevant = previous_changes.except("updated_at", "created_at")
     relevant = relevant.slice(*self.class.audited_fields) if self.class.audited_fields
     return if relevant.empty?
+    relevant = enrich_audit_changes(relevant) if respond_to?(:enrich_audit_changes, true)
+    return if relevant.empty?
     log_audit("updated", changes: relevant)
   end
 
