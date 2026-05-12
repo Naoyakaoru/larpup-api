@@ -174,7 +174,8 @@ RSpec.describe "Events", type: :request do
           headers: { "Content-Type" => "application/json" }.merge(auth_header(host))
       }.to change { AuditLog.count }.by(1)
 
-      expect(AuditLog.last.action).to eq("location_changed")
+      expect(AuditLog.last.action).to eq("updated")
+      expect(AuditLog.last.metadata["changes"]).to have_key("location")
     end
 
     it "forbids non-host" do

@@ -7,7 +7,8 @@ class Event < ApplicationRecord
 
   has_many :event_members, dependent: :destroy
   has_many :members, through: :event_members, source: :user
-  has_many :audit_logs, as: :auditable, dependent: :destroy
+  include Auditable
+  audit_fields :status, :location, :address_id, :scheduled_at, :offline_male, :offline_female
 
   include AASM
 
@@ -65,5 +66,26 @@ class Event < ApplicationRecord
     elsif full?
       open!
     end
+  end
+
+  private
+
+  def enrich_audit_changes(changes)
+    has_location   = changes.key?("location")
+    has_address_id = changes.key?("address_id")
+    return changes unless has_location || has_address_id
+
+    old_addr_id  = changes.dig("address_id", 0)
+    new_addr_id  = changes.dig("address_id", 1)
+    old_loc_text = changes.dig("location", 0)
+    new_loc_text = changes.dig("location", 1)
+
+    old_display = old_addr_id ? Address.find_by(id: old_addr_id)&.name : old_loc_text
+    new_display = new_addr_id ? Address.find_by(id: new_addr_id)&.name : new_loc_text
+
+    rest = changes.except("address_id", "location")
+    return rest if old_display == new_display
+
+    rest.merge("location" => [ old_display, new_display ])
   end
 end

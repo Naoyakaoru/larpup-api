@@ -35,7 +35,6 @@ module Api
               warning = "store_id not found or not accessible"
             end
           end
-          AuditLog.create!(auditable: address, user: current_user, action: "created", metadata: {})
           json = AddressSerializer.new(address).as_json
           json[:warning] = warning if warning
           render json: json, status: :created
@@ -47,13 +46,7 @@ module Api
       # PATCH /addresses/:id
       def update
         permitted = current_user.is_admin? ? admin_update_params : store_manager_update_params
-        old_attrs = @address.slice(*permitted.keys)
-
         if @address.update(permitted)
-          changes = permitted.keys.each_with_object({}) do |k, h|
-            h[k] = [ old_attrs[k], @address[k] ] if old_attrs[k] != @address[k]
-          end
-          AuditLog.create!(auditable: @address, user: current_user, action: "updated", metadata: { changes: changes }) if changes.any?
           render json: AddressSerializer.new(@address).as_json
         else
           render json: { errors: @address.errors.full_messages }, status: :unprocessable_entity
