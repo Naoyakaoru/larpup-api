@@ -52,22 +52,7 @@ module Api
       def update
         permitted = has_members? ? location_only_params : event_params
 
-        old_location = @event.location
-        old_address_id = @event.address_id
-        old_address_name = @event.address&.name
         if @event.update(permitted)
-          if has_members? && (@event.location != old_location || @event.address_id != old_address_id)
-            new_address_name = @event.address_id ? Address.find_by(id: @event.address_id)&.name : nil
-            AuditLog.create!(
-              auditable: @event,
-              user: current_user,
-              action: "location_changed",
-              metadata: {
-                from: old_address_name || old_location,
-                to: new_address_name || @event.location
-              }
-            )
-          end
           @event.sync_status
           render json: EventSerializer.new(@event, detail: true, url_helper: method(:url_for)).as_json
         else
