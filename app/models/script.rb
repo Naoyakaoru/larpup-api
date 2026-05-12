@@ -27,6 +27,8 @@ class Script < ApplicationRecord
   enum :difficulty, { easy: 0, medium: 1, hard: 2 }
   enum :status, { pending: "pending", approved: "approved", rejected: "rejected" }, default: :approved
 
+  after_commit :ensure_base_version, on: :create
+
   scope :active, -> { where(deleted_at: nil) }
 
   validates :title, presence: true, uniqueness: true
@@ -50,5 +52,9 @@ class Script < ApplicationRecord
 
   def at_least_one_slot
     errors.add(:base, "must have at least one slot") if total_slots < 1
+  end
+
+  def ensure_base_version
+    script_versions.unscope(where: :deleted_at).find_or_create_by!(store_id: nil)
   end
 end

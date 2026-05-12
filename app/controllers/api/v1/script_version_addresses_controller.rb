@@ -1,6 +1,7 @@
 module Api
   module V1
     class ScriptVersionAddressesController < ApplicationController
+      include StoreAccessible
       before_action :set_store_and_version
       before_action :require_store_access!
 
@@ -35,11 +36,6 @@ module Api
         render json: { error: "Not found" }, status: :not_found
       end
 
-      def require_store_access!
-        unless @store.owner_id == current_user.id || current_user.is_admin?
-          render json: { error: "Forbidden" }, status: :forbidden
-        end
-      end
     end
   end
 end

@@ -1,7 +1,8 @@
 class EventSerializer
-  def initialize(event, detail: false)
+  def initialize(event, detail: false, url_helper: nil)
     @event = event
     @detail = detail
+    @url_helper = url_helper
   end
 
   def as_json(*)
@@ -45,7 +46,8 @@ class EventSerializer
       duration: v.effective_duration,
       price: v.effective_price,
       store: v.store ? { id: v.store.id, name: v.store.name } : nil,
-      version_name: v.version_name
+      version_name: v.version_name,
+      cover_image_url: (s.cover_image.attached? && @url_helper) ? @url_helper.call(s.cover_image) : nil
     }
   end
 

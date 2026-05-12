@@ -3,11 +3,12 @@ module Api
     class EventsController < ApplicationController
       skip_before_action :authenticate!, only: [ :index, :show ]
 
-      before_action :set_event, only: [ :show, :update, :destroy, :restore, :cancel, :join, :leave ]
+      before_action :set_event,          only: [ :show ]
+      before_action :set_event_unscoped, only: [ :update, :destroy, :restore, :cancel, :join, :leave ]
       before_action :require_host!, only: [ :update, :destroy, :restore, :cancel ]
 
       def index
-        events = Event.includes(script_version: { store: :addresses }).includes(:host, :address)
+        events = Event.includes(script_version: [ { store: :addresses }, { script: { cover_image_attachment: :blob } } ]).includes(:host, :address)
         events = events.where(status: params[:status]) if params[:status].present?
         if params[:script_id].present?
           version_ids = ScriptVersion.where(script_id: params[:script_id]).pluck(:id)
@@ -19,11 +20,11 @@ module Api
           events = events.where("scheduled_at >= ?", Time.current)
         end
         events = events.order(scheduled_at: :asc)
-        render json: events.map { |e| EventSerializer.new(e).as_json }
+        render json: events.map { |e| EventSerializer.new(e, url_helper: method(:url_for)).as_json }
       end
 
       def show
-        render json: EventSerializer.new(@event, detail: true).as_json
+        render json: EventSerializer.new(@event, detail: true, url_helper: method(:url_for)).as_json
       end
 
       def create
@@ -42,7 +43,7 @@ module Api
             )
           end
           event.sync_status
-          render json: EventSerializer.new(event).as_json, status: :created
+          render json: EventSerializer.new(event, url_helper: method(:url_for)).as_json, status: :created
         else
           render json: { errors: event.errors.full_messages }, status: :unprocessable_entity
         end
@@ -68,7 +69,7 @@ module Api
             )
           end
           @event.sync_status
-          render json: EventSerializer.new(@event, detail: true).as_json
+          render json: EventSerializer.new(@event, detail: true, url_helper: method(:url_for)).as_json
         else
           render json: { errors: @event.errors.full_messages }, status: :unprocessable_entity
         end
@@ -85,7 +86,7 @@ module Api
 
       def restore
         @event.update_column(:deleted_at, nil)
-        render json: EventSerializer.new(@event, detail: true).as_json
+        render json: EventSerializer.new(@event, detail: true, url_helper: method(:url_for)).as_json
       end
 
       def cancel
@@ -94,7 +95,7 @@ module Api
         end
 
         @event.cancel!
-        render json: EventSerializer.new(@event, detail: true).as_json
+        render json: EventSerializer.new(@event, detail: true, url_helper: method(:url_for)).as_json
       end
 
       def join
@@ -155,6 +156,12 @@ module Api
       private
 
       def set_event
+        @event = Event.includes(:address, :host, script_version: :script).find(params[:id])
+      rescue ActiveRecord::RecordNotFound
+        render json: { error: "Event not found" }, status: :not_found
+      end
+
+      def set_event_unscoped
         @event = Event.unscoped.includes(:address, :host, script_version: :script).find(params[:id])
       rescue ActiveRecord::RecordNotFound
         render json: { error: "Event not found" }, status: :not_found

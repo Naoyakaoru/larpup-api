@@ -117,6 +117,48 @@ RSpec.describe "StoreScriptVersions", type: :request do
     end
   end
 
+  describe "DELETE /api/v1/stores/:store_id/script_versions/:id" do
+    let!(:version) { create(:script_version, script: script, store: store, price: 500) }
+
+    it "owner can soft-delete a version" do
+      delete "/api/v1/stores/#{store.id}/script_versions/#{version.id}",
+        headers: auth_header(owner)
+
+      expect(response).to have_http_status(:no_content)
+      expect(version.reload.deleted_at).not_to be_nil
+    end
+
+    it "does not hard-delete the record" do
+      expect {
+        delete "/api/v1/stores/#{store.id}/script_versions/#{version.id}",
+          headers: auth_header(owner)
+      }.not_to change(ScriptVersion.unscoped, :count)
+    end
+
+    it "writes an audit log with action 'deleted'" do
+      expect {
+        delete "/api/v1/stores/#{store.id}/script_versions/#{version.id}",
+          headers: auth_header(owner)
+      }.to change(AuditLog, :count).by(1)
+
+      expect(AuditLog.last.action).to eq("deleted")
+    end
+
+    it "returns 403 for non-owner" do
+      delete "/api/v1/stores/#{store.id}/script_versions/#{version.id}",
+        headers: auth_header(other_user)
+
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it "returns 404 for unknown version" do
+      delete "/api/v1/stores/#{store.id}/script_versions/999999",
+        headers: auth_header(owner)
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
   describe "PATCH /api/v1/stores/:store_id/script_versions/:id" do
     let!(:version) { create(:script_version, script: script, store: store, price: 500, available: true) }
 
