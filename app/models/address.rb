@@ -1,5 +1,6 @@
 class Address < ApplicationRecord
   include Auditable
+  audit_fields :name, :address, :map_url, :region
 
   enum :region, {
     taipei_city: "台北市",
