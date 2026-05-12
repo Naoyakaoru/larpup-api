@@ -42,4 +42,23 @@ namespace :scripts do
 
     puts "\nDone: #{done} downloaded, #{failed} failed"
   end
+
+  desc "Create a base version (store_id: nil) for every script that doesn't have one"
+  task backfill_base_versions: :environment do
+    scripts_without_base = Script.unscoped
+                                 .left_joins(:script_versions)
+                                 .where(script_versions: { store_id: nil, id: nil })
+                                 .distinct
+
+    total = scripts_without_base.count
+    puts "Found #{total} scripts without a base version"
+
+    created = 0
+    scripts_without_base.find_each do |script|
+      ScriptVersion.create!(script: script, store: nil)
+      created += 1
+    end
+
+    puts "Done: #{created} base versions created"
+  end
 end
