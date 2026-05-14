@@ -11,6 +11,7 @@ class User < ApplicationRecord
   validate :avatar_content_type_and_size, if: -> { avatar.attached? && avatar.changed? }
 
 
+  has_many :user_consents, dependent: :destroy
   has_many :hosted_events, class_name: "Event", foreign_key: :host_id, dependent: :destroy
   has_many :event_members, dependent: :destroy
   has_many :joined_events, through: :event_members, source: :event

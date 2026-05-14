@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_12_055647) do
+ActiveRecord::Schema[7.2].define(version: 2026_05_12_110145) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -162,6 +162,20 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_12_055647) do
     t.index ["owner_id"], name: "index_stores_on_owner_id"
   end
 
+  create_table "user_consents", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "consent_type", limit: 50, null: false
+    t.string "consent_version", limit: 50, null: false
+    t.boolean "accepted", default: true, null: false
+    t.datetime "accepted_at", default: -> { "CURRENT_TIMESTAMP" }, null: false
+    t.string "ip_address", limit: 255
+    t.text "user_agent"
+    t.string "source", limit: 50
+    t.index ["consent_type"], name: "index_user_consents_on_consent_type"
+    t.index ["user_id", "consent_type", "consent_version"], name: "index_user_consents_on_user_type_version", unique: true
+    t.index ["user_id"], name: "index_user_consents_on_user_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "email"
     t.string "password_digest"
@@ -197,4 +211,5 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_12_055647) do
   add_foreign_key "store_addresses", "addresses"
   add_foreign_key "store_addresses", "stores"
   add_foreign_key "stores", "users", column: "owner_id"
+  add_foreign_key "user_consents", "users"
 end

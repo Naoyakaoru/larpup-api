@@ -57,6 +57,8 @@ Rails.application.routes.draw do
         end
       end
 
+      resources :user_consents, only: [ :index, :create ]
+
       resources :events, only: [ :index, :show, :create, :update, :destroy ] do
         member do
           post   :join
