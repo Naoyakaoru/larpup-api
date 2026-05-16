@@ -61,6 +61,23 @@ Rails.application.configure do
   # want to log everything, set the level to "debug".
   config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "info")
 
+  # ── Lograge: compress each request into a single JSON line ──────────────────
+  # Example output on Fly.io:
+  # {"method":"POST","path":"/api/v1/auth/sso/google","status":409,"duration":253,"user_id":null,"error":"此 Email 已被註冊"}
+  config.lograge.enabled = true
+  config.lograge.formatter = Lograge::Formatters::Json.new
+  config.lograge.custom_options = lambda do |event|
+    opts = {
+      request_id: event.payload[:headers]&.dig("X-Request-Id"),
+      ip:         event.payload[:remote_ip],
+    }
+    # Attach user_id if the controller set it
+    opts[:user_id] = event.payload[:user_id] if event.payload[:user_id]
+    # Attach error message if any
+    opts[:error] = event.payload[:error] if event.payload[:error]
+    opts
+  end
+
   # Use a different cache store in production.
   # config.cache_store = :mem_cache_store
 
