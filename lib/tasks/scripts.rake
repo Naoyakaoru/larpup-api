@@ -23,7 +23,7 @@ namespace :scripts do
       url = "#{CDN_BASE}/#{cover_id}#{CDN_SUFFIX}"
 
       begin
-        io = URI.open(url, read_timeout: 15)
+        io = URI.open(url, read_timeout: 15, open_timeout: 5)
         script.cover_image.attach(
           io: io,
           filename: cover_id,

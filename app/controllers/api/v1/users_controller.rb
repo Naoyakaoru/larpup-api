@@ -36,11 +36,11 @@ module Api
 
       def events
         scope = params[:include_past] == "true" ? Event.unscoped.where(deleted_at: nil) : Event.where("scheduled_at >= ?", Time.current)
-        hosted = current_user.hosted_events.merge(scope).order(scheduled_at: :asc).includes(:address, script_version: :script)
-        joined = current_user.joined_events.merge(scope).order(scheduled_at: :asc).includes(:address, script_version: :script)
+        hosted = current_user.hosted_events.merge(scope).order(scheduled_at: :asc).includes(:address, :host, script_version: :script)
+        joined = current_user.joined_events.merge(scope).order(scheduled_at: :asc).includes(:address, :host, script_version: :script)
         render json: {
-          hosted: hosted.map { |e| event_json(e) },
-          joined: joined.map { |e| event_json(e) }
+          hosted: hosted.map { |e| EventSerializer.new(e, url_helper: method(:url_for)).as_json },
+          joined: joined.map { |e| EventSerializer.new(e, url_helper: method(:url_for)).as_json }
         }
       end
 
@@ -74,21 +74,10 @@ module Api
           avatar_url: user.avatar.attached? ? url_for(user.avatar) : nil
         }
         if user.show_hosted_events
-          hosted = user.hosted_events.where(status: [ :recruiting, :full ]).where("scheduled_at >= ?", Time.current).order(scheduled_at: :asc).includes(:address, script_version: :script)
-          json[:hosted_events] = hosted.map { |e| event_json(e) }
+          hosted = user.hosted_events.where(status: [ :recruiting, :full ]).where("scheduled_at >= ?", Time.current).order(scheduled_at: :asc).includes(:address, :host, script_version: :script)
+          json[:hosted_events] = hosted.map { |e| EventSerializer.new(e, url_helper: method(:url_for)).as_json }
         end
         json
-      end
-
-      def event_json(event)
-        {
-          id: event.id,
-          script: { id: event.script_version.script.id, title: event.script_version.script.title },
-          scheduled_at: event.scheduled_at,
-          location: event.location,
-          address: event.address ? { name: event.address.name, region: event.address.region } : nil,
-          status: event.status
-        }
       end
     end
   end
