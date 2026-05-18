@@ -63,7 +63,8 @@ Rails.application.configure do
 
   # ── Lograge: compress each request into a single JSON line ──────────────────
   # Example output on Fly.io:
-  # {"method":"POST","path":"/api/v1/auth/sso/google","status":409,"duration":253,"user_id":null,"error":"此 Email 已被註冊"}
+  # {"method":"POST","path":"/api/v1/auth/sso/google","status":409,"duration":253,"sso_uid":"...","conflict":"email_taken"}
+  require_relative "../../app/lib/lograge_options"
   config.lograge.enabled = true
   config.lograge.formatter = Lograge::Formatters::Json.new
   config.lograge.custom_options = LogrageOptions.custom_options
