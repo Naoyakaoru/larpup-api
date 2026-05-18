@@ -8,7 +8,7 @@ module Api
       before_action :require_host!, only: [ :update, :destroy, :restore, :cancel ]
 
       def index
-        events = Event.includes(script_version: [ { store: :addresses }, { script: { cover_image_attachment: :blob } } ]).includes(:host, :address)
+        events = Event.includes(script_version: [ { store: :addresses }, { script: { cover_image_attachment: :blob } } ]).includes(:host, :address, event_members: :user)
         events = events.where(status: params[:status]) if params[:status].present?
         if params[:script_id].present?
           version_ids = ScriptVersion.where(script_id: params[:script_id]).pluck(:id)

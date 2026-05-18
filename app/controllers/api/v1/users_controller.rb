@@ -36,8 +36,8 @@ module Api
 
       def events
         scope = params[:include_past] == "true" ? Event.unscoped.where(deleted_at: nil) : Event.where("scheduled_at >= ?", Time.current)
-        hosted = current_user.hosted_events.merge(scope).order(scheduled_at: :asc).includes(:address, :host, script_version: :script)
-        joined = current_user.joined_events.merge(scope).order(scheduled_at: :asc).includes(:address, :host, script_version: :script)
+        hosted = current_user.hosted_events.merge(scope).order(scheduled_at: :asc).includes(:address, :host, script_version: :script, event_members: :user)
+        joined = current_user.joined_events.merge(scope).order(scheduled_at: :asc).includes(:address, :host, script_version: :script, event_members: :user)
         render json: {
           hosted: hosted.map { |e| EventSerializer.new(e, url_helper: method(:url_for)).as_json },
           joined: joined.map { |e| EventSerializer.new(e, url_helper: method(:url_for)).as_json }
@@ -74,7 +74,7 @@ module Api
           avatar_url: user.avatar.attached? ? url_for(user.avatar) : nil
         }
         if user.show_hosted_events
-          hosted = user.hosted_events.where(status: [ :recruiting, :full ]).where("scheduled_at >= ?", Time.current).order(scheduled_at: :asc).includes(:address, :host, script_version: :script)
+          hosted = user.hosted_events.where(status: [ :recruiting, :full ]).where("scheduled_at >= ?", Time.current).order(scheduled_at: :asc).includes(:address, :host, script_version: :script, event_members: :user)
           json[:hosted_events] = hosted.map { |e| EventSerializer.new(e, url_helper: method(:url_for)).as_json }
         end
         json

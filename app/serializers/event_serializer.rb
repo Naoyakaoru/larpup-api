@@ -20,6 +20,7 @@ class EventSerializer
       script_version_id: @event.script_version_id,
       confirmed_count: @event.confirmed_count,
       available_slots: @event.available_slots,
+      slot_parts: slot_parts_string,
       deleted_at: @event.deleted_at
     }
     if @detail
@@ -76,5 +77,41 @@ class EventSerializer
         created_at: log.created_at
       }
     end
+  end
+
+  def slot_parts_string
+    return "" if @event.status == "full" || @event.status == "completed" || @event.status == "cancelled"
+
+    script = @event.script_version.script
+    # For performance, only do this if needed, or if members are preloaded.
+    # The ideal way is to always preload event_members when serializing collections.
+    confirmed = @event.event_members.select { |m| m.status == "confirmed" }
+
+    male_filled = @event.offline_male
+    female_filled = @event.offline_female
+    any_filled = 0
+
+    confirmed.each do |m|
+      # Since we might not have user eager loaded in all collections, try to safely get gender
+      user_gender = m.user&.gender rescue "male" 
+      eg = m.cross_gender ? (user_gender == "male" ? "female" : "male") : user_gender
+      if eg == "male" && male_filled < script.male_slots
+        male_filled += 1
+      elsif eg == "female" && female_filled < script.female_slots
+        female_filled += 1
+      else
+        any_filled += 1
+      end
+    end
+
+    remaining_male = [ script.male_slots - male_filled, 0 ].max
+    remaining_female = [ script.female_slots - female_filled, 0 ].max
+    remaining_any = [ script.any_slots - any_filled, 0 ].max
+
+    parts = []
+    parts << "#{remaining_male}男" if remaining_male > 0
+    parts << "#{remaining_female}女" if remaining_female > 0
+    parts << "#{remaining_any}不限" if remaining_any > 0
+    parts.join("")
   end
 end
