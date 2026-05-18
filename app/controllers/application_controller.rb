@@ -28,7 +28,20 @@ class ApplicationController < ActionController::API
   # Lograge hook: inject extra fields into each request log line
   def append_info_to_payload(payload)
     super
-    payload[:user_id] = @current_user&.id
+    payload[:user_id]   = @current_user&.id
     payload[:remote_ip] = request.remote_ip
+    # Merge any controller-specific debug context (set via log_context)
+    payload.merge!(request.env.fetch("app.log_context", {}))
+  end
+
+  # Call this from any controller action to attach extra fields to the log line.
+  #
+  # Examples:
+  #   log_context(line_uid: uid, email: email)
+  #   log_context(conflict: "email_taken", canonical_email: canonical)
+  #
+  def log_context(hash)
+    request.env["app.log_context"] ||= {}
+    request.env["app.log_context"].merge!(hash)
   end
 end

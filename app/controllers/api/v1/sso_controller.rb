@@ -28,6 +28,8 @@ module Api
         profile = verify_google_token(id_token)
         return render json: { error: "Invalid Google token" }, status: :unauthorized if profile.nil?
 
+        log_context(sso_provider: "google", sso_uid: profile["sub"], sso_email: profile["email"])
+
         handle_sso_login(
           uid_field: :google_uid,
           uid:       profile["sub"],
@@ -48,10 +50,13 @@ module Api
 
         # Reject accounts where LINE did not provide an email
         if profile[:email].blank?
+          log_context(sso_provider: "line", sso_uid: profile[:uid], conflict: "no_email")
           return render json: {
             error: "請在 LINE 設定中允許分享 Email，或使用 Google 登入"
           }, status: :unprocessable_entity
         end
+
+        log_context(sso_provider: "line", sso_uid: profile[:uid], sso_email: profile[:email])
 
         handle_sso_login(
           uid_field: :line_uid,
@@ -187,6 +192,7 @@ module Api
         if user.nil? && email.present?
           canonical = User.canonicalize_email(email)
           if User.exists?(canonical_email: canonical)
+            log_context(conflict: "email_taken", canonical_email: canonical)
             return render json: { error: "此 Email 已被註冊，請使用原本的方式登入（或至會員中心綁定帳號）" }, status: :conflict
           end
         end
