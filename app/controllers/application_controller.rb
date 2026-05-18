@@ -24,4 +24,11 @@ class ApplicationController < ActionController::API
   def require_admin!
     render json: { error: "Forbidden" }, status: :forbidden unless current_user&.is_admin?
   end
+
+  # Lograge hook: inject extra fields into each request log line
+  def append_info_to_payload(payload)
+    super
+    payload[:user_id] = @current_user&.id
+    payload[:remote_ip] = request.remote_ip
+  end
 end
