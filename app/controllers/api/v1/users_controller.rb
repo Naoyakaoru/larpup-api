@@ -57,7 +57,7 @@ module Api
           email: user.email,
           nickname: user.nickname,
           gender: user.gender,
-          avatar_url: user.avatar.attached? ? url_for(user.avatar) : nil,
+          avatar_url: user.avatar.attached? ? "https://cdn.larpup.tw/#{user.avatar.key}" : nil,
           is_admin: user.is_admin,
           show_hosted_events: user.show_hosted_events,
           has_google: user.google_uid.present?,
@@ -71,7 +71,7 @@ module Api
           handle: user.handle,
           nickname: user.nickname,
           gender: user.gender,
-          avatar_url: user.avatar.attached? ? url_for(user.avatar) : nil
+          avatar_url: user.avatar.attached? ? "https://cdn.larpup.tw/#{user.avatar.key}" : nil
         }
         if user.show_hosted_events
           hosted = user.hosted_events.where(status: [ :recruiting, :full ]).where("scheduled_at >= ?", Time.current).order(scheduled_at: :asc).includes(:address, :host, script_version: :script, event_members: :user)

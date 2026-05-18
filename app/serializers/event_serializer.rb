@@ -48,7 +48,7 @@ class EventSerializer
       price: v.effective_price,
       store: v.store ? { id: v.store.id, name: v.store.name } : nil,
       version_name: v.version_name,
-      cover_image_url: (s.cover_image.attached? && @url_helper) ? @url_helper.call(s.cover_image) : nil
+      cover_image_url: s.cover_image.attached? ? "https://cdn.larpup.tw/#{s.cover_image.key}" : nil
     }
   end
 
