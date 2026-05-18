@@ -44,3 +44,8 @@ jobs:
 
       - name: Run RSpec
         run: bundle exec rspec --format progress
+
+      - name: Verify production boot
+        env:
+          RAILS_ENV: production
+        run: bundle exec rake environment
