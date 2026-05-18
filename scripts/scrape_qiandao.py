@@ -259,7 +259,9 @@ def main():
         # kpc: "劇本殺 / {pub} / {城限|獨家|盒裝} / {tag1} {tag2}..."
         # or 3-part when dist_type absent: "劇本殺 / {pub} / {tag1} {tag2}..."
         if len(kpc_parts) >= 4:
-            genres_text = re.sub(r"\s+", "、", kpc_parts[3].strip())
+            dist_type = kpc_parts[2].strip()
+            tags = re.sub(r"\s+", "、", kpc_parts[3].strip())
+            genres_text = f"{dist_type}、{tags}" if dist_type else tags
         elif len(kpc_parts) == 3:
             genres_text = re.sub(r"\s+", "、", kpc_parts[2].strip())
         else:
