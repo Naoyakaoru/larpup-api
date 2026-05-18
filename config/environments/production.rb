@@ -66,15 +66,7 @@ Rails.application.configure do
   # {"method":"POST","path":"/api/v1/auth/sso/google","status":409,"duration":253,"user_id":null,"error":"此 Email 已被註冊"}
   config.lograge.enabled = true
   config.lograge.formatter = Lograge::Formatters::Json.new
-  config.lograge.custom_options = lambda do |event|
-    opts = {
-      request_id: event.payload[:request_id],
-      ip:         event.payload[:remote_ip],
-    }
-    opts[:user_id] = event.payload[:user_id] if event.payload[:user_id]
-    opts[:error]   = event.payload[:error]   if event.payload[:error]
-    opts
-  end
+  config.lograge.custom_options = LogrageOptions.custom_options
 
   # Use a different cache store in production.
   # config.cache_store = :mem_cache_store
