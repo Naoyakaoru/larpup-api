@@ -26,6 +26,6 @@ class ScriptSerializer
 
   def cover_image_url
     return nil unless @script.cover_image.attached?
-    @url_helper&.call(@script.cover_image)
+    "https://cdn.larpup.tw/#{@script.cover_image.key}"
   end
 end
