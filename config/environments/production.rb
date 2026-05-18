@@ -68,13 +68,11 @@ Rails.application.configure do
   config.lograge.formatter = Lograge::Formatters::Json.new
   config.lograge.custom_options = lambda do |event|
     opts = {
-      request_id: event.payload[:headers]&.dig("X-Request-Id"),
+      request_id: event.payload[:request_id],
       ip:         event.payload[:remote_ip],
     }
-    # Attach user_id if the controller set it
     opts[:user_id] = event.payload[:user_id] if event.payload[:user_id]
-    # Attach error message if any
-    opts[:error] = event.payload[:error] if event.payload[:error]
+    opts[:error]   = event.payload[:error]   if event.payload[:error]
     opts
   end
 
