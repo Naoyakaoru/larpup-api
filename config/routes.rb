@@ -49,10 +49,12 @@ Rails.application.routes.draw do
         resources :scripts, only: [ :index, :destroy ] do
           collection do
             post :bulk_import
+            get  :autofill
           end
           member do
             patch :approve
             patch :reject
+            post  :cover_import
           end
         end
       end
