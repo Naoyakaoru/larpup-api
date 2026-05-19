@@ -6,13 +6,16 @@ module Api
 
       def index
         scripts = Script.where(status: :approved)
-        scripts = scripts.where(difficulty: params[:difficulty]) if params[:difficulty].present?
-        scripts = scripts.where("genres @> ARRAY[?]::integer[]", params[:genre].to_i) if params[:genre].present?
+        scripts = scripts.where(difficulty: params[:difficulty]) if params[:difficulty].in?(%w[easy medium hard])
+        if params[:genres].present?
+          genre_ids = params[:genres].split(",").map(&:to_i)
+          scripts = scripts.where("genres @> ARRAY[?]::integer[]", genre_ids)
+        end
         scripts = scripts.where("title ILIKE ?", "%#{params[:q]}%") if params[:q].present?
-        
+
         page = (params[:page] || 1).to_i
         per_page = 36
-        scripts = scripts.order(id: :desc).limit(per_page + 1).offset((page - 1) * per_page)
+        scripts = scripts.order(Arel.sql("(metadata->>'qiandao_wish_count')::int DESC NULLS LAST"), created_at: :desc).limit(per_page + 1).offset((page - 1) * per_page)
         
         has_more = scripts.length > per_page
         render json: {

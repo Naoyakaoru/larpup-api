@@ -97,4 +97,83 @@ RSpec.describe "Admin::Scripts", type: :request do
       expect(response).to have_http_status(:forbidden)
     end
   end
+
+  describe "POST /api/v1/admin/scripts/bulk_import" do
+    let(:base_row) do
+      {
+        title: "測試劇本",
+        difficulty: "medium",
+        genres: [ 0, 3 ],
+        male_slots: 3,
+        female_slots: 3,
+        any_slots: 0,
+        duration: "3.0",
+        description: "簡介",
+        publisher: "某工作室",
+        qiandao_id: "abc123",
+        rating: "9.1",
+        wish_count: "48000",
+        cover_image_id: "cover.jpg"
+      }
+    end
+
+    it "creates new scripts and saves wish_count in metadata" do
+      post "/api/v1/admin/scripts/bulk_import",
+        params: { scripts: [ base_row ] }.to_json,
+        headers: { "Content-Type" => "application/json" }.merge(auth_header(admin))
+
+      expect(response).to have_http_status(:ok)
+      expect(json["created"]).to eq(1)
+      expect(json["skipped"]).to eq(0)
+
+      s = Script.find_by!(title: "測試劇本")
+      expect(s.metadata["qiandao_wish_count"]).to eq(48000)
+      expect(s.metadata["qiandao_rating"]).to eq(9.1)
+      expect(s.metadata["qiandao_cover_id"]).to eq("cover.jpg")
+    end
+
+    it "updates metadata for existing scripts instead of skipping" do
+      existing = create(:script, title: "測試劇本", metadata: { qiandao_wish_count: 100 })
+
+      post "/api/v1/admin/scripts/bulk_import",
+        params: { scripts: [ base_row ] }.to_json,
+        headers: { "Content-Type" => "application/json" }.merge(auth_header(admin))
+
+      expect(response).to have_http_status(:ok)
+      expect(json["skipped"]).to eq(1)
+      expect(json["created"]).to eq(0)
+      expect(existing.reload.metadata["qiandao_wish_count"]).to eq(48000)
+    end
+
+    it "preserves existing metadata keys not in the import row" do
+      existing = create(:script, title: "測試劇本", metadata: { some_custom_key: "keep_me", qiandao_wish_count: 100 })
+
+      post "/api/v1/admin/scripts/bulk_import",
+        params: { scripts: [ base_row ] }.to_json,
+        headers: { "Content-Type" => "application/json" }.merge(auth_header(admin))
+
+      expect(existing.reload.metadata["some_custom_key"]).to eq("keep_me")
+    end
+
+    it "handles mixed new and existing scripts" do
+      create(:script, title: "已存在劇本")
+      new_row      = base_row.merge(title: "全新劇本")
+      existing_row = base_row.merge(title: "已存在劇本")
+
+      post "/api/v1/admin/scripts/bulk_import",
+        params: { scripts: [ new_row, existing_row ] }.to_json,
+        headers: { "Content-Type" => "application/json" }.merge(auth_header(admin))
+
+      expect(json["created"]).to eq(1)
+      expect(json["skipped"]).to eq(1)
+    end
+
+    it "returns 403 for non-admin" do
+      post "/api/v1/admin/scripts/bulk_import",
+        params: { scripts: [ base_row ] }.to_json,
+        headers: { "Content-Type" => "application/json" }.merge(auth_header(regular_user))
+
+      expect(response).to have_http_status(:forbidden)
+    end
+  end
 end

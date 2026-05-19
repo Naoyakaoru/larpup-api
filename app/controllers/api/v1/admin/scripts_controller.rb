@@ -1,4 +1,3 @@
-require "open3"
 
 module Api
   module V1
@@ -56,21 +55,16 @@ module Api
 
         def autofill
           title = params.require(:title)
-          script_root = Rails.root
-          python = script_root.join(".venv/bin/python")
-          lookup_script = script_root.join("scripts/qiandao_lookup.py")
-
-          output, status = Open3.capture2(python.to_s, lookup_script.to_s, title, chdir: script_root.join("scripts").to_s)
-          return render json: { error: "Lookup failed" }, status: :unprocessable_entity unless status.success?
-
-          result = JSON.parse(output.strip)
-          if result["error"]
-            render json: { error: "Script not found" }, status: :not_found
-          else
+          result = QiandaoSearchService.call(title)
+          if result
             render json: result
+          else
+            render json: { error: "Script not found" }, status: :not_found
           end
         rescue => e
-          render json: { error: "Lookup failed" }, status: :unprocessable_entity
+          Rails.logger.error("Autofill error: #{e.class} #{e.message}")
+          Rails.logger.error(e.backtrace.join("\n"))
+          render json: { error: "Lookup failed: #{e.message}" }, status: :unprocessable_entity
         end
 
         def destroy
@@ -84,18 +78,25 @@ module Api
           skipped = 0
           errors = []
 
-          existing_titles = Script.where(title: rows.map { |r| r[:title] }).pluck(:title).to_set
+          existing_scripts = Script.where(title: rows.map { |r| r[:title] }).index_by(&:title)
 
           rows.each_with_index do |row, i|
-            if existing_titles.include?(row[:title])
-              skipped += 1
-              next
-            end
-
             meta = {}
             meta[:qiandao_id] = row[:qiandao_id] if row[:qiandao_id].present?
             meta[:qiandao_rating] = row[:rating].to_f if row[:rating].present?
+            meta[:qiandao_wish_count] = row[:wish_count].to_i if row[:wish_count].present?
             meta[:qiandao_cover_id] = row[:cover_image_id] if row[:cover_image_id].present?
+
+            if existing_script = existing_scripts[row[:title]]
+              # Update existing metadata
+              updated_meta = existing_script.metadata.merge(meta)
+              if existing_script.update(metadata: updated_meta)
+                skipped += 1 # consider it "skipped for creation" but updated
+              else
+                errors << { index: i, title: row[:title], messages: existing_script.errors.full_messages }
+              end
+              next
+            end
 
             script = Script.new(
               title: row[:title],
