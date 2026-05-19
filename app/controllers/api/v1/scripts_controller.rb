@@ -8,9 +8,17 @@ module Api
         scripts = Script.where(status: :approved)
         scripts = scripts.where(difficulty: params[:difficulty]) if params[:difficulty].present?
         scripts = scripts.where("genres @> ARRAY[?]::integer[]", params[:genre].to_i) if params[:genre].present?
-        scripts = scripts.where("title LIKE ?", "%#{params[:q]}%") if params[:q].present?
-        scripts = scripts.limit(20) if params[:q].present?
-        render json: scripts.map { |s| ScriptSerializer.new(s, url_helper: method(:url_for)).as_json }
+        scripts = scripts.where("title ILIKE ?", "%#{params[:q]}%") if params[:q].present?
+        
+        page = (params[:page] || 1).to_i
+        per_page = 36
+        scripts = scripts.order(id: :desc).limit(per_page + 1).offset((page - 1) * per_page)
+        
+        has_more = scripts.length > per_page
+        render json: {
+          scripts: scripts.take(per_page).map { |s| ScriptSerializer.new(s, url_helper: method(:url_for)).as_json },
+          has_more: has_more
+        }
       end
 
       def show

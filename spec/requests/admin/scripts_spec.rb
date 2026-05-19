@@ -10,18 +10,20 @@ RSpec.describe "Admin::Scripts", type: :request do
     let!(:approved_script) { create(:script, status: :approved) }
     let!(:rejected_script) { create(:script, status: :rejected) }
 
-    it "returns all scripts for admin, pending first" do
+    it "returns all scripts for admin, paginated, pending first" do
       get "/api/v1/admin/scripts", headers: auth_header(admin)
 
       expect(response).to have_http_status(:ok)
-      expect(json.length).to eq(3)
-      expect(json.first["status"]).to eq("pending")
+      expect(json["scripts"].length).to eq(3)
+      expect(json["total"]).to eq(3)
+      expect(json["pending_count"]).to eq(1)
+      expect(json["scripts"].first["status"]).to eq("pending")
     end
 
     it "includes status field in each script" do
       get "/api/v1/admin/scripts", headers: auth_header(admin)
 
-      statuses = json.map { |s| s["status"] }
+      statuses = json["scripts"].map { |s| s["status"] }
       expect(statuses).to contain_exactly("pending", "approved", "rejected")
     end
 

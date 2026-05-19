@@ -14,6 +14,7 @@ import asyncio
 import csv
 import json
 import re
+import sys
 import time
 from pathlib import Path
 
@@ -190,18 +191,21 @@ def main():
 
     print(f"Using headers: {list(headers.keys())}")
 
+    start_offset = int(sys.argv[1]) if len(sys.argv) > 1 else 0
+    cap_arg = int(sys.argv[2]) if len(sys.argv) > 2 else 1000
+
     # first request to get total count
-    first = fetch_page(headers, 0)
+    first = fetch_page(headers, start_offset)
     if first.get("code") != 0:
         print(f"API error on first request: {first}")
         return
 
     total = int(first["data"]["count"])
     all_items = list(first["data"]["list"])
-    print(f"Total: {total}  |  fetched: {len(all_items)}")
+    print(f"Total: {total}  |  fetching from {start_offset} to {cap_arg}...")
 
-    offset = BATCH
-    cap = min(total, 500)  # hot 500
+    offset = start_offset + BATCH
+    cap = min(total, cap_arg)
     while offset < cap:
         data = fetch_page(headers, offset)
         if data.get("code") != 0 or not data.get("data"):
@@ -211,7 +215,7 @@ def main():
         if not batch:
             break
         all_items.extend(batch)
-        print(f"  fetched {len(all_items)} / {cap}")
+        print(f"  fetched {len(all_items)} / {cap - start_offset}")
         offset += BATCH
         time.sleep(0.3)
 

@@ -7,7 +7,20 @@ module Api
 
         def index
           scripts = Script.order(Arel.sql("CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END"), :id)
-          render json: scripts.map { |s| ScriptSerializer.new(s, url_helper: method(:url_for)).as_json }
+          scripts = scripts.where("title ILIKE ?", "%#{params[:q]}%") if params[:q].present?
+
+          total = scripts.count
+          page = (params[:page] || 1).to_i
+          per_page = 20
+          scripts = scripts.limit(per_page).offset((page - 1) * per_page)
+
+          render json: {
+            scripts: scripts.map { |s| ScriptSerializer.new(s, url_helper: method(:url_for)).as_json },
+            total: total,
+            page: page,
+            total_pages: (total.to_f / per_page).ceil,
+            pending_count: Script.where(status: :pending).count
+          }
         end
 
         def approve
