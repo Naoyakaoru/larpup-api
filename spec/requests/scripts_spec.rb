@@ -31,20 +31,52 @@ RSpec.describe "Scripts", type: :request do
     end
 
     it "filters by difficulty" do
-      get "/api/v1/scripts?difficulty=0"
+      get "/api/v1/scripts?difficulty=easy"
 
       expect(json["scripts"].all? { |s| s["difficulty"] == "easy" }).to be true
     end
 
-    it "filters by genre" do
+    it "filters by single genre" do
       mystery_script = create(:script, genres: [ 0 ])
       romance_script = create(:script, genres: [ 3 ])
 
-      get "/api/v1/scripts?genre=0"
+      get "/api/v1/scripts?genres=0"
 
       ids = json["scripts"].map { |s| s["id"] }
       expect(ids).to include(mystery_script.id)
       expect(ids).not_to include(romance_script.id)
+    end
+
+    it "filters by multiple genres" do
+      mystery_and_romance = create(:script, genres: [ 0, 3 ])
+      horror_only         = create(:script, genres: [ 2 ])
+
+      get "/api/v1/scripts?genres=0,3"
+
+      ids = json["scripts"].map { |s| s["id"] }
+      expect(ids).to include(mystery_and_romance.id)
+      expect(ids).not_to include(horror_only.id)
+    end
+
+    it "ignores invalid difficulty values" do
+      get "/api/v1/scripts?difficulty=invalid"
+
+      # Should return all scripts, not error
+      expect(response).to have_http_status(:ok)
+      expect(json["scripts"].length).to eq(2)
+    end
+
+    it "sorts by wish_count descending" do
+      popular = create(:script, metadata: { qiandao_wish_count: 50000 })
+      niche   = create(:script, metadata: { qiandao_wish_count: 100 })
+      no_data = create(:script, metadata: {})
+
+      get "/api/v1/scripts"
+
+      ids = json["scripts"].map { |s| s["id"] }
+      expect(ids.index(popular.id)).to be < ids.index(niche.id)
+      # scripts with no wish_count go last
+      expect(ids.index(no_data.id)).to be > ids.index(niche.id)
     end
   end
 
