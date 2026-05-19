@@ -1,5 +1,5 @@
 """
-qiandao_lookup.py — Search qiandao by title and return parsed script data as JSON.
+qiandao_lookup.py — Search by title and return parsed script data as JSON.
 
 Usage:
     python qiandao_lookup.py "劇本名稱（繁體）"
@@ -7,22 +7,35 @@ Usage:
 Output:
     JSON with script fields ready for import, printed to stdout.
 """
+import asyncio
 import json
 import re
 import sys
-from pathlib import Path
+
 import opencc
 import requests
 
+from auth_helper import capture_signed_headers
+
 SEARCH_URL = "https://api.qiandao.com/plast/search/chaos/v5"
-CDN_BASE = "https://treasure.qiandaocdn.com/treasure/images"
+FEED_URL   = "https://api.qiandao.com/treasure/ssr/spu/feed"
+CDN_BASE   = "https://treasure.qiandaocdn.com/treasure/images"
 CDN_SUFFIX = "!lfit_w600"
 
-HEADERS = {
+SEARCH_HEADERS = {
     "content-type": "application/json",
     "referer": "https://qiandao.com/",
-    "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "user-agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    ),
 }
+
+PROPERTY_IDS = ["1152095", "1152081", "1152112", "1152085", "53156", "55407"]
+PROP_PLAYER  = "1152081"  # 人数
+PROP_DIFF    = "1152085"  # 难度
+PROP_DUR     = "1152095"  # 时长
+PROP_DESC    = "55407"    # 描述
 
 _cc_t2s = opencc.OpenCC("t2s")
 _cc_s2t = opencc.OpenCC("s2t")
@@ -33,17 +46,42 @@ DIFFICULTY_MAP = {
     "困难": "hard", "烧脑": "hard", "重度": "hard",
 }
 
+# Correct mapping — matches Script::GENRES enum order exactly
 GENRE_MAP = {
-    "推理": 0, "恐怖": 1, "惊悚": 1, "微恐": 1,
+    # 0: 推理
+    "推理": 0, "本格": 0, "新本格": 0, "逻辑": 0,
+    # 1: 還原
+    "还原": 1, "反转": 1,
+    # 2: 恐怖
+    "恐怖": 2, "惊悚": 2, "微恐": 2,
+    # 3: 情感
     "情感": 3, "纯爱": 3, "治愈": 3, "亲情": 3,
-    "欢乐": 4, "沉浸": 5, "演绎": 6, "演绎交互": 6,
-    "古风": 7, "古代": 7, "武侠": 7, "仙侠": 7, "中式": 7,
-    "现代": 8, "近现代": 8, "都市": 8, "校园": 8, "豪门": 8, "民国": 8,
-    "架空": 9, "玄幻": 9, "奇幻": 9, "科幻": 9, "未来": 9,
-    "本格": 10, "新本格": 10, "逻辑": 10,
-    "机制": 11, "设定系": 11,
-    "还原": 12, "反转": 13,
-    "城限": 15, "独家": 16,
+    # 4: 歡樂
+    "欢乐": 4,
+    # 5: 機制
+    "机制": 5, "设定系": 5,
+    # 6: 陣營
+    "阵营": 6,
+    # 7: 古風
+    "古风": 7, "古代": 7, "武侠": 7, "仙侠": 7,
+    # 8: 現代
+    "现代": 8, "近现代": 8, "都市": 8, "校园": 8, "豪门": 8,
+    # 9: 日式
+    "日式": 9,
+    # 10: 中式
+    "中式": 10,
+    # 11: 民國
+    "民国": 11,
+    # 12: 社會
+    "社会": 12,
+    # 13: 刑偵
+    "刑侦": 13,
+    # 14: 演繹
+    "演绎": 14, "演绎交互": 14, "沉浸": 14,
+    # 15: 城限
+    "城限": 15,
+    # 16: 獨家
+    "独家": 16,
 }
 
 
@@ -55,15 +93,13 @@ def extract_cover_id(url: str) -> str:
 
 
 def cover_cdn_url(cover_id: str) -> str:
-    if not cover_id:
-        return ""
-    return f"{CDN_BASE}/{cover_id}{CDN_SUFFIX}"
+    return f"{CDN_BASE}/{cover_id}{CDN_SUFFIX}" if cover_id else ""
 
 
-def parse_slots(tag_names: list[str]):
-    """Extract player count from tag_names like '6人/(剧本杀人数)' or '4男3女/(剧本杀人数)'."""
-    for tag in tag_names:
-        name = re.sub(r"\(.*", "", tag).strip()
+def parse_slots(values: list[str]):
+    """Parse player count from strings like '4男3女', '6人', or tag_names with '/(...)' suffix."""
+    for val in values:
+        name = re.sub(r"[/(（].*", "", val).strip()
         m = re.match(r"(\d+)男(\d+)女", name)
         if m:
             return int(m.group(1)), int(m.group(2)), 0
@@ -73,32 +109,24 @@ def parse_slots(tag_names: list[str]):
     return 0, 0, 0
 
 
-def parse_difficulty(tag_names: list[str]) -> str:
-    for tag in tag_names:
-        raw = re.sub(r"/.*", "", tag).strip()
+def parse_difficulty(values: list[str]) -> str:
+    for val in values:
+        raw = re.sub(r"[/(（].*", "", val).strip()
         if raw in DIFFICULTY_MAP:
             return DIFFICULTY_MAP[raw]
     return "medium"
 
 
-def parse_genres(tag_names: list[str]) -> list[int]:
-    seen = set()
+def parse_genres(values: list[str]) -> list[int]:
+    seen: set[int] = set()
     result = []
-    for tag in tag_names:
-        raw = re.sub(r"/.*", "", tag).strip()
+    for val in values:
+        raw = re.sub(r"[/(（].*", "", val).strip()
         gid = GENRE_MAP.get(raw)
         if gid is not None and gid not in seen:
             seen.add(gid)
             result.append(gid)
     return result
-
-
-FEED_URL = "https://api.qiandao.com/treasure/ssr/spu/feed"
-PROPERTY_IDS = ["1152095", "1152081", "1152112", "1152085", "53156", "55407"]
-PROP_PLAYER  = "1152081"
-PROP_DIFF    = "1152085"
-PROP_DUR     = "1152095"
-PROP_DESC    = "55407"
 
 
 def extract_profile(profiles: list, property_id: str) -> list[str]:
@@ -108,61 +136,18 @@ def extract_profile(profiles: list, property_id: str) -> list[str]:
     return []
 
 
-def get_feed_detail(spu_id: str, signed_headers: dict | None) -> dict | None:
-    """Fetch detailed profiles for a specific spu using the feed API (requires signed headers)."""
-    if not signed_headers:
-        return None
-    payload = {
-        "limit": 1,
-        "offset": 0,
-        "orderBy": "waterfallScoreDesc",
-        "scene": "1column",
-        "typeId": "1000225",
-        "spuId": spu_id,
-        "propertyIds": PROPERTY_IDS,
-    }
-    try:
-        r = requests.post(FEED_URL, json=payload, headers=signed_headers, timeout=15, verify=False)
-        data = r.json()
-        items = (data.get("data") or {}).get("list") or []
-        return items[0] if items else None
-    except Exception:
-        return None
+async def search_qiandao(title_zh_tw: str) -> dict | None:
+    title_s = _cc_t2s.convert(title_zh_tw)
 
+    # Step 1: text search (no auth needed)
+    resp = requests.post(
+        SEARCH_URL,
+        json={"q": title_s, "startIndex": 0, "maxResults": 10,
+              "origin": "search", "version": "5", "scene": "qiandao_web"},
+        headers=SEARCH_HEADERS, timeout=15, verify=False,
+    )
+    items = resp.json().get("data", {}).get("items") or []
 
-def load_signed_headers() -> dict | None:
-    """Try to load saved session headers. Returns None if not available."""
-    session_path = Path(__file__).parent / "qiandao_session.json"
-    if not session_path.exists():
-        return None
-    # We can't use Playwright here (sync context), so we try to reuse the last known
-    # signed headers stored separately by the auth_helper.
-    signed_path = Path(__file__).parent / "qiandao_signed_headers.json"
-    if signed_path.exists():
-        try:
-            return json.loads(signed_path.read_text())
-        except Exception:
-            pass
-    return None
-
-
-def search_qiandao(title_zh_tw: str) -> dict | None:
-    """Search qiandao by Traditional Chinese title, return parsed script data."""
-    title_simplified = _cc_t2s.convert(title_zh_tw)
-
-    payload = {
-        "q": title_simplified,
-        "startIndex": 0,
-        "maxResults": 10,
-        "origin": "search",
-        "version": "5",
-        "scene": "qiandao_web",
-    }
-    resp = requests.post(SEARCH_URL, json=payload, headers=HEADERS, timeout=15, verify=False)
-    data = resp.json()
-    items = data.get("data", {}).get("items") or []
-
-    # Find the best match (exact name match preferred, else first spu)
     spu = None
     for item in items:
         if item.get("type") != "spu":
@@ -170,8 +155,7 @@ def search_qiandao(title_zh_tw: str) -> dict | None:
         show = item.get("spuShow", {})
         if not show.get("type_id"):
             continue
-        name_s = show.get("name", "")
-        if name_s == title_simplified:
+        if show.get("name", "") == title_s:
             spu = show
             break
         if spu is None:
@@ -180,61 +164,66 @@ def search_qiandao(title_zh_tw: str) -> dict | None:
     if not spu:
         return None
 
-    spu_id = spu.get("id", "")
-    cover_raw = spu.get("image", "") or ""
-    cover_id = extract_cover_id(cover_raw)
-
-    # Parse publisher from key_property: "剧本杀 / Publisher / dist / genres"
-    kp = spu.get("key_property", "")
+    spu_id   = spu.get("id", "")
+    cover_id = extract_cover_id(spu.get("image", "") or "")
+    kp       = spu.get("key_property", "")
     kp_parts = [p.strip() for p in kp.split("/")]
-    publisher_simplified = kp_parts[1] if len(kp_parts) >= 2 else ""
-    publisher = _cc_s2t.convert(publisher_simplified)
+    publisher = _cc_s2t.convert(kp_parts[1] if len(kp_parts) >= 2 else "")
 
-    # --- Try to get detailed profiles from feed API ---
-    signed = load_signed_headers()
-    detail = get_feed_detail(spu_id, signed) if signed else None
+    # Step 2: fetch detailed profiles via feed API (requires signed headers)
+    signed = await capture_signed_headers()
+    detail = None
+    if signed:
+        try:
+            payload = {
+                "limit": 1, "offset": 0,
+                "orderBy": "waterfallScoreDesc",
+                "scene": "1column", "typeId": "1000225",
+                "spuId": spu_id,
+                "propertyIds": PROPERTY_IDS,
+            }
+            r = requests.post(FEED_URL, json=payload, headers=signed, timeout=15, verify=False)
+            items2 = (r.json().get("data") or {}).get("list") or []
+            detail = items2[0] if items2 else None
+        except Exception:
+            pass
 
     if detail:
-        profiles = detail.get("profiles", [])
-        player_raw = extract_profile(profiles, PROP_PLAYER)
-        diff_raw   = extract_profile(profiles, PROP_DIFF)
-        dur_raw    = extract_profile(profiles, PROP_DUR)
-        desc_raw   = extract_profile(profiles, PROP_DESC)
+        profiles    = detail.get("profiles", [])
+        player_raw  = extract_profile(profiles, PROP_PLAYER)
+        diff_raw    = extract_profile(profiles, PROP_DIFF)
+        dur_raw     = extract_profile(profiles, PROP_DUR)
+        desc_raw    = extract_profile(profiles, PROP_DESC)
 
-        # Parse male/female from "4男3女" or "6人"
         male, female, any_ = parse_slots(player_raw)
-        difficulty = DIFFICULTY_MAP.get(re.sub(r"/.*", "", diff_raw[0]).strip(), "medium") if diff_raw else "medium"
-
-        dur_match = re.match(r"(\d+)小时", (dur_raw[0] or "").strip()) if dur_raw else None
-        duration = int(dur_match.group(1)) if dur_match else None
-
+        difficulty = DIFFICULTY_MAP.get(diff_raw[0].strip(), "medium") if diff_raw else "medium"
+        dur_m      = re.match(r"(\d+)", (dur_raw[0] or "").strip()) if dur_raw else None
+        duration   = int(dur_m.group(1)) if dur_m else None
         description = _cc_s2t.convert(desc_raw[0]) if desc_raw else ""
-
-        # Genres from detail tag_names (more complete than search)
         genres = parse_genres(detail.get("tag_names") or []) or parse_genres(spu.get("tag_names") or [])
     else:
-        # Fallback: use search tag_names only
-        tag_names = spu.get("tag_names") or []
+        # Fallback: search tag_names only (no male/female breakdown, no duration)
+        tag_names   = spu.get("tag_names") or []
         male, female, any_ = parse_slots(tag_names)
-        difficulty = parse_difficulty(tag_names)
-        genres = parse_genres(tag_names)
-        duration = None
+        difficulty  = parse_difficulty(tag_names)
+        genres      = parse_genres(tag_names)
+        duration    = None
         description = ""
 
     return {
-        "qiandao_id": spu_id,
-        "title": _cc_s2t.convert(spu.get("name", title_zh_tw)),
-        "difficulty": difficulty,
-        "genres": genres,
-        "male_slots": male,
-        "female_slots": female,
-        "any_slots": any_,
-        "duration": duration,
-        "description": description,
-        "publisher": publisher,
+        "qiandao_id":     spu_id,
+        "title":          _cc_s2t.convert(spu.get("name", title_zh_tw)),
+        "difficulty":     difficulty,
+        "genres":         genres,
+        "male_slots":     male,
+        "female_slots":   female,
+        "any_slots":      any_,
+        "duration":       duration,
+        "description":    description,
+        "publisher":      publisher,
         "cover_image_id": cover_id,
-        "cover_cdn_url": cover_cdn_url(cover_id),
-        "key_property": _cc_s2t.convert(kp),
+        "cover_cdn_url":  cover_cdn_url(cover_id),
+        "key_property":   _cc_s2t.convert(kp),
     }
 
 
@@ -243,10 +232,8 @@ if __name__ == "__main__":
         print(json.dumps({"error": "Usage: qiandao_lookup.py <title>"}))
         sys.exit(1)
 
-    title = sys.argv[1]
-    result = search_qiandao(title)
+    result = asyncio.run(search_qiandao(sys.argv[1]))
     if result:
         print(json.dumps(result, ensure_ascii=False))
     else:
-        print(json.dumps({"error": f"Not found: {title}"}))
-
+        print(json.dumps({"error": f"Not found: {sys.argv[1]}"}))
