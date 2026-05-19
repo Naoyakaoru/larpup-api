@@ -37,6 +37,14 @@ scripts/__pycache__/
 scripts/cover_preview/
 scripts/.DS_Store
 scripts/*.csv
-qiandao_scripts.csv
+
+# Scripts – local session / auth (sensitive, never commit)
+scripts/*_session.json
+scripts/*_signed_headers.json
+scripts/completed_tags.json
+
+# Scripts – local work files (personal, not code)
+scripts/names.txt
+scripts/names_missing.txt
 
 .DS_Store
