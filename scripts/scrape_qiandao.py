@@ -20,7 +20,7 @@ from pathlib import Path
 
 import opencc
 import requests
-from playwright.async_api import async_playwright
+from auth_helper import capture_signed_headers
 
 # Simplified → Traditional converter
 _cc = opencc.OpenCC("s2t")
@@ -93,54 +93,6 @@ KEEP_HEADERS = [
 ]
 
 
-async def capture_signed_headers() -> dict:
-    """Load the catalog page and capture the HMAC-signed headers from the feed request."""
-    captured = {}
-
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
-        context = await browser.new_context(
-            user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/120.0.0.0 Safari/537.36"
-            )
-        )
-        page = await context.new_page()
-
-        async def on_request(request):
-            if request.resource_type in ["xhr", "fetch"]:
-                print(f"[DEBUG] Fetching: {request.url}")
-            if "ssr/spu/feed" in request.url and not captured:
-                for k, v in request.headers.items():
-                    if k.lower() in KEEP_HEADERS:
-                        captured[k.lower()] = v
-                print(f"Captured {len(captured)} signed headers")
-
-        page.on("request", on_request)
-
-        print("Loading catalog page to capture signed headers...")
-        # Start navigation without waiting for full load
-        asyncio.ensure_future(
-            page.goto(CATALOG_URL, wait_until="commit", timeout=60000)
-        )
-        # Wait up to 60s for the feed request to appear
-        for _ in range(60):
-            if captured:
-                break
-            await asyncio.sleep(1)
-        if not captured:
-            # try scrolling
-            try:
-                await page.evaluate("window.scrollBy(0, 300)")
-            except Exception:
-                pass
-            await asyncio.sleep(5)
-
-        await browser.close()
-
-    return captured
-
 
 def extract_profile(profiles, property_id):
     for group in profiles:
@@ -194,15 +146,26 @@ def main():
     start_offset = int(sys.argv[1]) if len(sys.argv) > 1 else 0
     cap_arg = int(sys.argv[2]) if len(sys.argv) > 2 else 1000
 
-    # first request to get total count
+    # Always fetch offset 0 first to get total count (API only returns count on page 0)
+    probe = fetch_page(headers, 0)
+    if probe.get("code") != 0:
+        print(f"API error on probe request: {probe}")
+        return
+    total = int(probe["data"]["count"])
+    print(f"Total available: {total}  |  fetching from {start_offset} to {cap_arg}...")
+
+    # Now fetch the actual starting page
     first = fetch_page(headers, start_offset)
     if first.get("code") != 0:
-        print(f"API error on first request: {first}")
+        print(f"API error at start_offset={start_offset}: {first}")
+        return
+    if not first.get("data") or not first["data"].get("list"):
+        print(f"[INFO] API returned empty data at offset {start_offset}.")
+        print(f"[INFO] The API likely has a hard limit around offset {start_offset}.")
+        print(f"[INFO] Only the top ~{start_offset} hot scripts are accessible via this API.")
         return
 
-    total = int(first["data"]["count"])
-    all_items = list(first["data"]["list"])
-    print(f"Total: {total}  |  fetching from {start_offset} to {cap_arg}...")
+    all_items = list(first["data"].get("list") or [])
 
     offset = start_offset + BATCH
     cap = min(total, cap_arg)

@@ -55,6 +55,7 @@ Rails.application.routes.draw do
             patch :approve
             patch :reject
             post  :cover_import
+            delete :cover_delete
           end
         end
       end

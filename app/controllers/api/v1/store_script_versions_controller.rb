@@ -27,6 +27,11 @@ module Api
           )
 
           version.save!
+
+          if params[:address_ids].present?
+            version.address_ids = Array(params[:address_ids]).map(&:to_i)
+          end
+
           render json: version_json(version.reload), status: :created
         end
       rescue ActiveRecord::RecordInvalid => e
@@ -127,7 +132,8 @@ module Api
 
       def version_params
         params.permit(:available, :price, :version_name, :duration_override,
-                      :npc_count, :gm_count, :has_food, :has_costume_change)
+                      :npc_count, :gm_count, :has_food, :has_costume_change,
+                      address_ids: [])
       end
 
       def version_json(v)
@@ -148,7 +154,8 @@ module Api
           npc_count: v.npc_count&.to_i,
           gm_count: v.gm_count&.to_i,
           has_food: bool.cast(v.has_food),
-          has_costume_change: bool.cast(v.has_costume_change)
+          has_costume_change: bool.cast(v.has_costume_change),
+          address_ids: v.address_ids
         }
       end
     end
