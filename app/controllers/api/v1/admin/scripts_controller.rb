@@ -7,7 +7,7 @@ module Api
         before_action :set_script, only: %i[approve reject destroy cover_import]
 
         def index
-          scripts = Script.order(Arel.sql("CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END"), :id)
+          scripts = Script.where(deleted_at: nil).order(Arel.sql("CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END"), :id)
           scripts = scripts.where("title ILIKE ?", "%#{params[:q]}%") if params[:q].present?
 
           total = scripts.count
