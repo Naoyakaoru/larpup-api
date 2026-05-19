@@ -4,10 +4,11 @@ module Api
     module Admin
       class ScriptsController < ApplicationController
         before_action :require_admin!
-        before_action :set_script, only: %i[approve reject destroy cover_import]
+        before_action :set_script, only: %i[approve reject destroy cover_import cover_delete]
 
         def index
-          scripts = Script.where(deleted_at: nil).order(Arel.sql("CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END"), :id)
+          scripts = Script.unscope(where: :deleted_at)
+                         .order(Arel.sql("CASE WHEN deleted_at IS NOT NULL THEN 3 WHEN status = 'pending' THEN 0 WHEN status = 'approved' THEN 1 ELSE 2 END"), :id)
           scripts = scripts.where("title ILIKE ?", "%#{params[:q]}%") if params[:q].present?
 
           total = scripts.count
@@ -70,6 +71,12 @@ module Api
         def destroy
           @script.update_column(:deleted_at, Time.current)
           head :no_content
+        end
+
+        def cover_delete
+          return render json: { error: "No cover attached" }, status: :unprocessable_entity unless @script.cover_image.attached?
+          @script.cover_image.purge
+          render json: ScriptSerializer.new(@script.reload, url_helper: method(:url_for)).as_json
         end
 
         def bulk_import
