@@ -21,17 +21,19 @@ RSpec.describe "Scripts", type: :request do
     let!(:easy_script)   { create(:script, difficulty: 0) }
     let!(:medium_script) { create(:script, difficulty: 1) }
 
-    it "returns all scripts without auth" do
+    it "returns all scripts without auth, paginated" do
       get "/api/v1/scripts"
 
       expect(response).to have_http_status(:ok)
-      expect(json.length).to eq(2)
+      expect(json).to have_key("scripts")
+      expect(json).to have_key("has_more")
+      expect(json["scripts"].length).to eq(2)
     end
 
     it "filters by difficulty" do
       get "/api/v1/scripts?difficulty=0"
 
-      expect(json.all? { |s| s["difficulty"] == "easy" }).to be true
+      expect(json["scripts"].all? { |s| s["difficulty"] == "easy" }).to be true
     end
 
     it "filters by genre" do
@@ -40,7 +42,7 @@ RSpec.describe "Scripts", type: :request do
 
       get "/api/v1/scripts?genre=0"
 
-      ids = json.map { |s| s["id"] }
+      ids = json["scripts"].map { |s| s["id"] }
       expect(ids).to include(mystery_script.id)
       expect(ids).not_to include(romance_script.id)
     end
