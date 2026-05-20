@@ -6,7 +6,7 @@ module Api
       before_action :require_store_access!
 
       def index
-        versions = @store.script_versions.includes(:script).order(created_at: :desc)
+        versions = @store.script_versions.joins(:script).where(scripts: { deleted_at: nil }).includes(:script).order(created_at: :desc)
         render json: versions.map { |v| version_json(v) }
       end
 
