@@ -76,7 +76,7 @@ class QiandaoSearchService
     publisher = kp.split("/").map(&:strip)[1]
 
     {
-      title:          @title,
+      title:          spu["name"].present? ? to_traditional(spu["name"]) : @title,
       difficulty:     parse_difficulty(tag_names),
       genres:         parse_genres(tag_names),
       male_slots:     parse_slots(tag_names)[:male],
@@ -126,6 +126,10 @@ class QiandaoSearchService
 
   def to_simplified(text)
     OpenCC.with(:t2s) { |cc| cc.convert(text) }
+  end
+
+  def to_traditional(text)
+    OpenCC.with(:s2t) { |cc| cc.convert(text) }
   end
 
   def extract_cover_id(url)
