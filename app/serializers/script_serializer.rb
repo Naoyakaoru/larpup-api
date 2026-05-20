@@ -6,7 +6,7 @@ class ScriptSerializer
   end
 
   def as_json(*)
-    {
+    hash = {
       id: @script.id,
       title: @script.title,
       genres: @script.genres,
