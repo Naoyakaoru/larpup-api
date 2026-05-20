@@ -386,4 +386,65 @@ RSpec.describe "Events", type: :request do
       expect(response).to have_http_status(:unprocessable_entity)
     end
   end
+
+  describe "DELETE /api/v1/events/:id – audit log (BE-5)" do
+    it "writes an audit log entry for deleted_at change when soft-deleting" do
+      event # ensure created
+      expect {
+        delete "/api/v1/events/#{event.id}", headers: auth_header(host)
+      }.to change { AuditLog.where(auditable_type: "Event", auditable_id: event.id).count }.by(1)
+
+      log = AuditLog.where(auditable_type: "Event", auditable_id: event.id).last
+      expect(log.action).to eq("updated")
+      expect(log.metadata.dig("changes", "deleted_at")).to be_present
+    end
+  end
+
+  describe "PATCH /api/v1/events/:id/restore – audit log (BE-5)" do
+    it "writes an audit log entry for deleted_at change when restoring" do
+      event.update_column(:deleted_at, Time.current)
+
+      expect {
+        patch "/api/v1/events/#{event.id}/restore", headers: auth_header(host)
+      }.to change { AuditLog.where(auditable_type: "Event", auditable_id: event.id).count }.by(1)
+
+      log = AuditLog.where(auditable_type: "Event", auditable_id: event.id).last
+      expect(log.action).to eq("updated")
+      expect(log.metadata.dig("changes", "deleted_at")).to be_present
+    end
+  end
+
+  describe "GET /api/v1/events – slot_parts field" do
+    it "returns slot_parts string reflecting remaining male/female/any slots" do
+      small_script = create(:script, male_slots: 1, female_slots: 1, any_slots: 0)
+      small_version = create(:script_version, script: small_script)
+      small_event = create(:event, script_version: small_version, host: host)
+
+      get "/api/v1/events"
+      event_json = json.find { |e| e["id"] == small_event.id }
+      expect(event_json["slot_parts"]).to include("男").or include("女")
+    end
+
+    it "returns empty slot_parts when event is full" do
+      event.update_columns(offline_male: 2, offline_female: 2, status: Event.statuses[:full])
+      get "/api/v1/events"
+      event_json = json.find { |e| e["id"] == event.id }
+      expect(event_json["slot_parts"]).to eq("")
+    end
+  end
+
+  describe "POST /api/v1/events/:id/join – with_lock race condition guard (BE-6)" do
+    it "does not allow joining when no slot is available even under concurrent-like conditions" do
+      # Fill all female slots
+      event.update_columns(offline_female: 2)
+
+      post "/api/v1/events/#{event.id}/join",
+        params: {}.to_json,
+        headers: { "Content-Type" => "application/json" }.merge(auth_header(other_user))
+
+      # other_user is female (factory default), no female slots left, no any slots
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(json["error"]).to include("空位")
+    end
+  end
 end
