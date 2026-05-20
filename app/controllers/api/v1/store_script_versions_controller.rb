@@ -124,8 +124,9 @@ module Api
             female_slots: params[:female_slots] || 0,
             any_slots: params[:any_slots] || 0,
             genres: params[:genres] || [],
-            duration: params[:duration_override],
-            status: :pending
+            duration: params[:duration_override].presence,
+            status: :pending,
+            metadata: params[:cover_image_id].present? ? { "cover_image_id" => params[:cover_image_id] } : nil
           )
         end
       end

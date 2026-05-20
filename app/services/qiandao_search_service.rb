@@ -86,7 +86,6 @@ class QiandaoSearchService
       description:    "",
       publisher:      publisher,
       cover_image_id: cover_id,
-      cover_cdn_url:  cover_id.present? ? "#{CDN_BASE}/#{cover_id}#{CDN_SUFFIX}" : nil,
       key_property:   kp
     }
   end

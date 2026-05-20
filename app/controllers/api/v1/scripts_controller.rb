@@ -21,7 +21,7 @@ module Api
 
         per_page = 36
         scripts = scripts.order(Arel.sql("(metadata->>'qiandao_wish_count')::int DESC NULLS LAST"), created_at: :desc).limit(per_page + 1).offset((page - 1) * per_page)
-        
+
         has_more = scripts.length > per_page
         render json: {
           scripts: scripts.take(per_page).map { |s| ScriptSerializer.new(s, url_helper: method(:url_for)).as_json },
