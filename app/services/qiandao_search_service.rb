@@ -1,6 +1,7 @@
 require "net/http"
 require "uri"
 require "json"
+require "opencc"
 
 class QiandaoSearchService
   SEARCH_URL = "https://api.qiandao.com/plast/search/chaos/v5"
@@ -93,7 +94,7 @@ class QiandaoSearchService
   private
 
   def find_spu
-    query = @title.to_s.dup.force_encoding("UTF-8")
+    query = to_simplified(@title.to_s).force_encoding("UTF-8")
     body = JSON.generate(
       q: query, startIndex: 0, maxResults: 10,
       origin: "search", version: "5", scene: "qiandao_web"
@@ -116,12 +117,16 @@ class QiandaoSearchService
       next unless item["type"] == "spu"
       show = item["spuShow"] || {}
       next unless show["type_id"].present?
-      return show if show["name"] == @title
+      return show if to_simplified(show["name"].to_s) == to_simplified(@title.to_s)
       best ||= show
     end
     best
   rescue
     nil
+  end
+
+  def to_simplified(text)
+    OpenCC.with(:t2s) { |cc| cc.convert(text) }
   end
 
   def extract_cover_id(url)
