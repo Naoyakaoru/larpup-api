@@ -76,7 +76,7 @@ class QiandaoSearchService
     publisher = kp.split("/").map(&:strip)[1]
 
     {
-      title:          spu["name"] || @title,
+      title:          @title,
       difficulty:     parse_difficulty(tag_names),
       genres:         parse_genres(tag_names),
       male_slots:     parse_slots(tag_names)[:male],
