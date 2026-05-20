@@ -2,6 +2,7 @@ module Api
   module V1
     class ScriptsController < ApplicationController
       skip_before_action :authenticate!, only: [ :index, :show ]
+      before_action :set_current_user_optional, only: [ :show ]
       before_action :require_admin!, only: [ :create, :update ]
 
       def index
@@ -26,7 +27,7 @@ module Api
 
       def show
         script = Script.find_by!(id: params[:id], deleted_at: nil)
-        render json: ScriptSerializer.new(script, url_helper: method(:url_for)).as_json
+        render json: ScriptSerializer.new(script, url_helper: method(:url_for), include_metadata: current_user&.is_admin?).as_json
       rescue ActiveRecord::RecordNotFound
         render json: { error: "Script not found" }, status: :not_found
       end

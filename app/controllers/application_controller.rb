@@ -6,11 +6,17 @@ class ApplicationController < ActionController::API
   private
 
   def authenticate!
-    token = request.headers["Authorization"]&.split(" ")&.last
-    payload = JwtAuthenticatable.decode(token)
-    @current_user = User.find_by(id: payload&.dig("user_id"))
-    Current.user = @current_user
+    set_current_user_optional
     render json: { error: "Unauthorized" }, status: :unauthorized unless @current_user
+  end
+
+  def set_current_user_optional
+    token = request.headers["Authorization"]&.split(" ")&.last
+    if token
+      payload = JwtAuthenticatable.decode(token)
+      @current_user = User.find_by(id: payload&.dig("user_id"))
+      Current.user = @current_user
+    end
   end
 
   def current_user

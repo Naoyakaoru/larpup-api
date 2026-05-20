@@ -1,7 +1,8 @@
 class ScriptSerializer
-  def initialize(script, url_helper: nil)
+  def initialize(script, url_helper: nil, include_metadata: false)
     @script = script
     @url_helper = url_helper
+    @include_metadata = include_metadata
   end
 
   def as_json(*)
@@ -22,6 +23,8 @@ class ScriptSerializer
       qiandao_cover_id: @script.metadata&.dig("qiandao_cover_id"),
       deleted_at: @script.deleted_at
     }
+    hash[:metadata] = @script.metadata if @include_metadata
+    hash
   end
 
   private
