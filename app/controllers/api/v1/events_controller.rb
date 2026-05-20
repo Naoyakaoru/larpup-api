@@ -65,12 +65,14 @@ module Api
           return render json: { error: "已有人申請，無法刪除" }, status: :unprocessable_entity
         end
 
-        @event.update_column(:deleted_at, Time.current)
+        # BE-5: use soft_delete! so after_commit callbacks (audit log) fire normally
+        @event.soft_delete!
         render json: { message: "Event deleted" }
       end
 
       def restore
-        @event.update_column(:deleted_at, nil)
+        # BE-5: use restore! so after_commit callbacks (audit log) fire normally
+        @event.restore!
         render json: EventSerializer.new(@event, detail: true, url_helper: method(:url_for)).as_json
       end
 
@@ -105,20 +107,23 @@ module Api
         cross_gender = params[:cross_gender].present? && @event.allow_cross_gender
         effective_gender = cross_gender ? (current_user.gender == "male" ? "female" : "male") : current_user.gender
 
-        unless slot_available_for?(effective_gender)
-          return render json: { error: "沒有符合性別的空位" }, status: :unprocessable_entity
-        end
+        # BE-6: use row-level lock to prevent race condition (double-booking)
+        @event.with_lock do
+          unless slot_available_for?(effective_gender)
+            return render json: { error: "沒有符合性別的空位" }, status: :unprocessable_entity
+          end
 
-        if member&.cancelled?
-          member.update!(cross_gender: cross_gender)
-          member.reapply!
-          render json: { message: "Join request sent" }, status: :created
-        else
-          member = @event.event_members.build(user: current_user, status: :pending, cross_gender: cross_gender)
-          if member.save
+          if member&.cancelled?
+            member.update!(cross_gender: cross_gender)
+            member.reapply!
             render json: { message: "Join request sent" }, status: :created
           else
-            render json: { errors: member.errors.full_messages }, status: :unprocessable_entity
+            member = @event.event_members.build(user: current_user, status: :pending, cross_gender: cross_gender)
+            if member.save
+              render json: { message: "Join request sent" }, status: :created
+            else
+              render json: { errors: member.errors.full_messages }, status: :unprocessable_entity
+            end
           end
         end
       end
@@ -141,7 +146,9 @@ module Api
       private
 
       def set_event
-        @event = Event.includes(:address, :host, script_version: :script).find(params[:id])
+        # BE-4: preload event_members: :user so confirmed_count and members_data
+        #        both walk in-memory associations (no extra DB queries)
+        @event = Event.includes(:address, :host, event_members: :user, script_version: :script).find(params[:id])
       rescue ActiveRecord::RecordNotFound
         render json: { error: "Event not found" }, status: :not_found
       end
@@ -156,33 +163,13 @@ module Api
         render json: { error: "Forbidden" }, status: :forbidden unless @event.host_id == current_user.id
       end
 
+      # BE-1: delegate slot math to Event#remaining_slots (single source of truth)
       def slot_available_for?(effective_gender)
-        script = @event.script_version.script
-        confirmed = @event.event_members.confirmed.includes(:user)
-
-        male_filled = @event.offline_male
-        female_filled = @event.offline_female
-        any_filled = 0
-
-        confirmed.each do |m|
-          eg = m.cross_gender ? (m.user.gender == "male" ? "female" : "male") : m.user.gender
-          if eg == "male" && male_filled < script.male_slots
-            male_filled += 1
-          elsif eg == "female" && female_filled < script.female_slots
-            female_filled += 1
-          else
-            any_filled += 1
-          end
-        end
-
-        remaining_male = [ script.male_slots - male_filled, 0 ].max
-        remaining_female = [ script.female_slots - female_filled, 0 ].max
-        remaining_any = [ script.any_slots - any_filled, 0 ].max
-
+        slots = @event.remaining_slots
         if effective_gender == "male"
-          remaining_male > 0 || remaining_any > 0
+          slots[:male] > 0 || slots[:any] > 0
         else
-          remaining_female > 0 || remaining_any > 0
+          slots[:female] > 0 || slots[:any] > 0
         end
       end
 

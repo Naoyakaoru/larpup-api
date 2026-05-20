@@ -8,7 +8,7 @@ class Event < ApplicationRecord
   has_many :event_members, dependent: :destroy
   has_many :members, through: :event_members, source: :user
   include Auditable
-  audit_fields :status, :location, :address_id, :scheduled_at, :offline_male, :offline_female
+  audit_fields :status, :location, :address_id, :scheduled_at, :offline_male, :offline_female, :deleted_at
 
   include AASM
 
@@ -50,12 +50,55 @@ class Event < ApplicationRecord
     script_version.script.total_slots
   end
 
+  # BE-4: walk in-memory when already preloaded (avoids N+1 on show/index),
+  #        fall back to SQL scope otherwise (keeps correctness in model specs and background jobs).
   def confirmed_count
-    event_members.confirmed.count + offline_male + offline_female
+    if event_members.loaded?
+      event_members.count(&:confirmed?) + offline_male + offline_female
+    else
+      event_members.confirmed.count + offline_male + offline_female
+    end
   end
 
   def available_slots
     total_slots - confirmed_count
+  end
+
+  # BE-5: use update() so that after_commit callbacks (audit log, sync_status) fire normally
+  def soft_delete!
+    update(deleted_at: Time.current)
+  end
+
+  def restore!
+    update(deleted_at: nil)
+  end
+
+  # BE-1: shared slot calculation; caller should preload event_members: :user for best performance.
+  #        If not preloaded, falls back to a DB query here (correct but not N+1-free).
+  def remaining_slots
+    script = script_version.script
+    male_filled   = offline_male
+    female_filled = offline_female
+    any_filled    = 0
+
+    members = event_members.loaded? ? event_members : event_members.includes(:user)
+    members.select(&:confirmed?).each do |m|
+      user_gender = m.user&.gender
+      eg = m.cross_gender ? (user_gender == "male" ? "female" : "male") : user_gender
+      if eg == "male" && male_filled < script.male_slots
+        male_filled += 1
+      elsif eg == "female" && female_filled < script.female_slots
+        female_filled += 1
+      else
+        any_filled += 1
+      end
+    end
+
+    {
+      male:   [ script.male_slots   - male_filled,   0 ].max,
+      female: [ script.female_slots - female_filled, 0 ].max,
+      any:    [ script.any_slots    - any_filled,    0 ].max,
+    }
   end
 
   def sync_status
