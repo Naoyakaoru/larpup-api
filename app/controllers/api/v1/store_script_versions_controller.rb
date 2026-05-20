@@ -126,7 +126,7 @@ module Api
             genres: params[:genres] || [],
             duration: params[:duration_override].presence,
             status: :pending,
-            metadata: params[:cover_image_id].present? ? { "cover_image_id" => params[:cover_image_id] } : nil
+            metadata: params[:cover_image_id].present? ? { "cover_image_id" => params[:cover_image_id] } : {}
           )
         end
       end
