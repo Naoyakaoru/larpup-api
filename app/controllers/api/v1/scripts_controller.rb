@@ -2,10 +2,15 @@ module Api
   module V1
     class ScriptsController < ApplicationController
       skip_before_action :authenticate!, only: [ :index, :show ]
-      before_action :set_current_user_optional, only: [ :show ]
+      before_action :set_current_user_optional, only: [ :index, :show ]
       before_action :require_admin!, only: [ :create, :update ]
 
       def index
+        page = (params[:page] || 1).to_i
+        if page > 1 && !current_user
+          return render json: { error: "Unauthorized" }, status: :unauthorized
+        end
+
         scripts = Script.active.where(status: :approved)
         scripts = scripts.where(difficulty: params[:difficulty]) if params[:difficulty].in?(%w[easy medium hard])
         if params[:genres].present?
@@ -14,7 +19,6 @@ module Api
         end
         scripts = scripts.where("title ILIKE ?", "%#{params[:q]}%") if params[:q].present?
 
-        page = (params[:page] || 1).to_i
         per_page = 36
         scripts = scripts.order(Arel.sql("(metadata->>'qiandao_wish_count')::int DESC NULLS LAST"), created_at: :desc).limit(per_page + 1).offset((page - 1) * per_page)
         
