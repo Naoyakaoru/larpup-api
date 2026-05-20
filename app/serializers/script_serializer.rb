@@ -20,7 +20,6 @@ class ScriptSerializer
       status: @script.status,
       duration: @script.duration,
       cover_image_url: cover_image_url,
-      qiandao_cover_id: @script.metadata&.dig("qiandao_cover_id"),
       deleted_at: @script.deleted_at
     }
     hash[:metadata] = @script.metadata if @include_metadata
