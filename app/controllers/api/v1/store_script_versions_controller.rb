@@ -6,7 +6,7 @@ module Api
       before_action :require_store_access!
 
       def index
-        versions = @store.script_versions.includes(:script).order(created_at: :desc)
+        versions = @store.script_versions.joins(:script).merge(Script.active).includes(:script).order(created_at: :desc)
         render json: versions.map { |v| version_json(v) }
       end
 
@@ -124,8 +124,9 @@ module Api
             female_slots: params[:female_slots] || 0,
             any_slots: params[:any_slots] || 0,
             genres: params[:genres] || [],
-            duration: params[:duration_override],
-            status: :pending
+            duration: params[:duration_override].presence,
+            status: :pending,
+            metadata: params[:cover_image_id].present? ? { "cover_image_id" => params[:cover_image_id] } : {}
           )
         end
       end

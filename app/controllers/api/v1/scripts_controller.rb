@@ -2,10 +2,16 @@ module Api
   module V1
     class ScriptsController < ApplicationController
       skip_before_action :authenticate!, only: [ :index, :show ]
+      before_action :set_current_user_optional, only: [ :index, :show ]
       before_action :require_admin!, only: [ :create, :update ]
 
       def index
-        scripts = Script.where(status: :approved)
+        page = (params[:page] || 1).to_i
+        if page > 1 && !current_user
+          return render json: { error: "Unauthorized" }, status: :unauthorized
+        end
+
+        scripts = Script.active.where(status: :approved)
         scripts = scripts.where(difficulty: params[:difficulty]) if params[:difficulty].in?(%w[easy medium hard])
         if params[:genres].present?
           genre_ids = params[:genres].split(",").map(&:to_i)
@@ -13,10 +19,9 @@ module Api
         end
         scripts = scripts.where("title ILIKE ?", "%#{params[:q]}%") if params[:q].present?
 
-        page = (params[:page] || 1).to_i
         per_page = 36
         scripts = scripts.order(Arel.sql("(metadata->>'qiandao_wish_count')::int DESC NULLS LAST"), created_at: :desc).limit(per_page + 1).offset((page - 1) * per_page)
-        
+
         has_more = scripts.length > per_page
         render json: {
           scripts: scripts.take(per_page).map { |s| ScriptSerializer.new(s, url_helper: method(:url_for)).as_json },
@@ -25,8 +30,8 @@ module Api
       end
 
       def show
-        script = Script.find(params[:id])
-        render json: ScriptSerializer.new(script, url_helper: method(:url_for)).as_json
+        script = Script.active.find(params[:id])
+        render json: ScriptSerializer.new(script, url_helper: method(:url_for), include_metadata: current_user&.is_admin?).as_json
       rescue ActiveRecord::RecordNotFound
         render json: { error: "Script not found" }, status: :not_found
       end

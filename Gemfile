@@ -39,6 +39,9 @@ gem "dotenv-rails", groups: [:development, :test]
 # Structured single-line JSON request logging (great for Fly.io)
 gem "lograge"
 
+# Traditional ↔ Simplified Chinese conversion (for Qiandao search)
+gem "opencc-rb"
+
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
