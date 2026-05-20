@@ -6,7 +6,7 @@ module Api
       before_action :require_admin!, only: [ :create, :update ]
 
       def index
-        scripts = Script.where(status: :approved, deleted_at: nil)
+        scripts = Script.active.where(status: :approved)
         scripts = scripts.where(difficulty: params[:difficulty]) if params[:difficulty].in?(%w[easy medium hard])
         if params[:genres].present?
           genre_ids = params[:genres].split(",").map(&:to_i)
@@ -26,7 +26,7 @@ module Api
       end
 
       def show
-        script = Script.find_by!(id: params[:id], deleted_at: nil)
+        script = Script.active.find(params[:id])
         render json: ScriptSerializer.new(script, url_helper: method(:url_for), include_metadata: current_user&.is_admin?).as_json
       rescue ActiveRecord::RecordNotFound
         render json: { error: "Script not found" }, status: :not_found
